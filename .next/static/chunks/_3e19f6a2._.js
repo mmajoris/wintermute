@@ -853,12 +853,14 @@ const NeuralBrainShaderMaterial = (0, __TURBOPACK__imported__module__$5b$project
     time: 0,
     fresnelAmount: 0.65,
     fresnelOpacity: 1.0,
-    hologramColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x00ccff),
+    outerColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x8844cc),
+    innerColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x22aaff),
+    accentColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0xcc44aa),
     hologramBrightness: 0.8,
     hologramOpacity: 1.0,
     noiseScale: 0.8,
     layerDepth: 0.0
-}, "\n    varying vec3 vNormal;\n    varying vec3 vViewPosition;\n    varying vec2 vUv;\n    varying vec3 vPositionW;\n    varying vec3 vNormalW;\n    varying vec4 vPos;\n\n    void main() {\n      vUv = uv;\n      vNormal = normalize(normalMatrix * normal);\n      \n      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n      vViewPosition = -mvPosition.xyz;\n      vPositionW = (modelMatrix * vec4(position, 1.0)).xyz;\n      vNormalW = normalize((modelMatrix * vec4(normal, 0.0)).xyz);\n      vPos = projectionMatrix * mvPosition;\n      \n      gl_Position = vPos;\n    }\n  ", "\n    uniform float time;\n    uniform float fresnelAmount;\n    uniform float fresnelOpacity;\n    uniform vec3 hologramColor;\n    uniform float hologramBrightness;\n    uniform float hologramOpacity;\n    uniform float noiseScale;\n    uniform float layerDepth;\n    \n    varying vec3 vNormal;\n    varying vec3 vViewPosition;\n    varying vec2 vUv;\n    varying vec3 vPositionW;\n    varying vec3 vNormalW;\n    varying vec4 vPos;\n    \n    // Simplex-style noise for organic variation\n    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\n    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\n    vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }\n    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }\n\n    float snoise(vec3 v) {\n      const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);\n      const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);\n\n      vec3 i = floor(v + dot(v, C.yyy));\n      vec3 x0 = v - i + dot(i, C.xxx);\n\n      vec3 g = step(x0.yzx, x0.xyz);\n      vec3 l = 1.0 - g;\n      vec3 i1 = min(g.xyz, l.zxy);\n      vec3 i2 = max(g.xyz, l.zxy);\n\n      vec3 x1 = x0 - i1 + C.xxx;\n      vec3 x2 = x0 - i2 + C.yyy;\n      vec3 x3 = x0 - D.yyy;\n\n      i = mod289(i);\n      vec4 p = permute(permute(permute(\n                i.z + vec4(0.0, i1.z, i2.z, 1.0))\n              + i.y + vec4(0.0, i1.y, i2.y, 1.0))\n              + i.x + vec4(0.0, i1.x, i2.x, 1.0));\n\n      float n_ = 0.142857142857;\n      vec3 ns = n_ * D.wyz - D.xzx;\n\n      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);\n\n      vec4 x_ = floor(j * ns.z);\n      vec4 y_ = floor(j - 7.0 * x_);\n\n      vec4 x = x_ * ns.x + ns.yyyy;\n      vec4 y = y_ * ns.x + ns.yyyy;\n      vec4 h = 1.0 - abs(x) - abs(y);\n\n      vec4 b0 = vec4(x.xy, y.xy);\n      vec4 b1 = vec4(x.zw, y.zw);\n\n      vec4 s0 = floor(b0) * 2.0 + 1.0;\n      vec4 s1 = floor(b1) * 2.0 + 1.0;\n      vec4 sh = -step(h, vec4(0.0));\n\n      vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;\n      vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;\n\n      vec3 p0 = vec3(a0.xy, h.x);\n      vec3 p1 = vec3(a0.zw, h.y);\n      vec3 p2 = vec3(a1.xy, h.z);\n      vec3 p3 = vec3(a1.zw, h.w);\n\n      vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));\n      p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;\n\n      vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);\n      m = m * m;\n      return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));\n    }\n\n    void main() {\n      // Fresnel - bright at edges, transparent in center\n      vec3 viewDir = normalize(cameraPosition - vPositionW);\n      float fresnelBase = dot(viewDir, vNormalW);\n      float fresnel = clamp(fresnelAmount - fresnelBase * (1.6 - fresnelOpacity / 2.0), 0.0, fresnelOpacity);\n      \n      // Smooth noise - only large-scale variation, no fine grain\n      float noise = snoise(vPositionW * noiseScale) * 0.5 + 0.5;\n      \n      // Broad vein-like patterns\n      float veins = abs(snoise(vPositionW * noiseScale * 1.5));\n      veins = pow(1.0 - veins, 3.0);\n      \n      float veinIntensity = veins * 0.5;\n      \n      // Color: base hologram color, brighter at veins and edges\n      vec3 baseColor = hologramColor * hologramBrightness;\n      \n      // Inner glow: slight brightness in center areas, controlled by layerDepth\n      float innerGlow = (1.0 - fresnel) * noise * 0.15 * (0.5 + layerDepth * 0.5);\n      \n      // Combine: fresnel edges + vein patterns + inner glow\n      vec3 finalColor = baseColor * (fresnel + veinIntensity * 0.4 + innerGlow);\n      \n      // Add slight color variation to veins (whiter at peaks)\n      finalColor += vec3(1.0) * veinIntensity * 0.15;\n      \n      // Opacity: edges bright, center mostly transparent\n      // Outer layers much more transparent than inner\n      float baseAlpha = mix(0.03, 0.08, layerDepth);\n      float alpha = baseAlpha + fresnel * 0.7 + veinIntensity * 0.2 + innerGlow;\n      alpha *= hologramOpacity;\n      alpha = clamp(alpha, 0.0, 1.0);\n      \n      gl_FragColor = vec4(finalColor, alpha);\n    }\n  ");
+}, "\n    varying vec3 vNormal;\n    varying vec3 vViewPosition;\n    varying vec2 vUv;\n    varying vec3 vPositionW;\n    varying vec3 vNormalW;\n    varying vec3 vLocalPos;\n    varying vec4 vPos;\n\n    void main() {\n      vUv = uv;\n      vNormal = normalize(normalMatrix * normal);\n      vLocalPos = position;\n      \n      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n      vViewPosition = -mvPosition.xyz;\n      vPositionW = (modelMatrix * vec4(position, 1.0)).xyz;\n      vNormalW = normalize((modelMatrix * vec4(normal, 0.0)).xyz);\n      vPos = projectionMatrix * mvPosition;\n      \n      gl_Position = vPos;\n    }\n  ", "\n    uniform float time;\n    uniform float fresnelAmount;\n    uniform float fresnelOpacity;\n    uniform vec3 outerColor;\n    uniform vec3 innerColor;\n    uniform vec3 accentColor;\n    uniform float hologramBrightness;\n    uniform float hologramOpacity;\n    uniform float noiseScale;\n    uniform float layerDepth;\n    \n    varying vec3 vNormal;\n    varying vec3 vViewPosition;\n    varying vec2 vUv;\n    varying vec3 vPositionW;\n    varying vec3 vNormalW;\n    varying vec3 vLocalPos;\n    varying vec4 vPos;\n    \n    // Simplex-style noise for organic variation\n    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\n    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\n    vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }\n    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }\n\n    float snoise(vec3 v) {\n      const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);\n      const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);\n\n      vec3 i = floor(v + dot(v, C.yyy));\n      vec3 x0 = v - i + dot(i, C.xxx);\n\n      vec3 g = step(x0.yzx, x0.xyz);\n      vec3 l = 1.0 - g;\n      vec3 i1 = min(g.xyz, l.zxy);\n      vec3 i2 = max(g.xyz, l.zxy);\n\n      vec3 x1 = x0 - i1 + C.xxx;\n      vec3 x2 = x0 - i2 + C.yyy;\n      vec3 x3 = x0 - D.yyy;\n\n      i = mod289(i);\n      vec4 p = permute(permute(permute(\n                i.z + vec4(0.0, i1.z, i2.z, 1.0))\n              + i.y + vec4(0.0, i1.y, i2.y, 1.0))\n              + i.x + vec4(0.0, i1.x, i2.x, 1.0));\n\n      float n_ = 0.142857142857;\n      vec3 ns = n_ * D.wyz - D.xzx;\n\n      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);\n\n      vec4 x_ = floor(j * ns.z);\n      vec4 y_ = floor(j - 7.0 * x_);\n\n      vec4 x = x_ * ns.x + ns.yyyy;\n      vec4 y = y_ * ns.x + ns.yyyy;\n      vec4 h = 1.0 - abs(x) - abs(y);\n\n      vec4 b0 = vec4(x.xy, y.xy);\n      vec4 b1 = vec4(x.zw, y.zw);\n\n      vec4 s0 = floor(b0) * 2.0 + 1.0;\n      vec4 s1 = floor(b1) * 2.0 + 1.0;\n      vec4 sh = -step(h, vec4(0.0));\n\n      vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;\n      vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;\n\n      vec3 p0 = vec3(a0.xy, h.x);\n      vec3 p1 = vec3(a0.zw, h.y);\n      vec3 p2 = vec3(a1.xy, h.z);\n      vec3 p3 = vec3(a1.zw, h.w);\n\n      vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));\n      p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;\n\n      vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);\n      m = m * m;\n      return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));\n    }\n\n    void main() {\n      // Fresnel - bright at edges, transparent in center\n      vec3 viewDir = normalize(cameraPosition - vPositionW);\n      float fresnelBase = dot(viewDir, vNormalW);\n      float fresnel = clamp(fresnelAmount - fresnelBase * (1.6 - fresnelOpacity / 2.0), 0.0, fresnelOpacity);\n      \n      // Noise in local space with slow time drift\n      float t = time * 0.15;\n      float noise = snoise(vLocalPos * noiseScale + t) * 0.5 + 0.5;\n      \n      // Single vein/pathway pattern with slower drift\n      float veins = abs(snoise(vLocalPos * noiseScale * 1.5 + t * 0.7));\n      veins = clamp(1.0 - veins, 0.0, 1.0);\n      veins = veins * veins * veins;\n      \n      float veinIntensity = clamp(veins, 0.0, 1.0);\n      \n      // Color gradient: purple at edges -> cyan at center/veins\n      // Outer layers are more purple, inner layers more cyan\n      float colorMix = fresnel * 0.6 + (1.0 - layerDepth) * 0.4;\n      vec3 surfaceColor = mix(innerColor, outerColor, colorMix);\n      \n      // Veins glow brighter cyan/white\n      vec3 veinColor = mix(innerColor, vec3(0.7, 0.85, 1.0), 0.4);\n      \n      // Accent color mixed in via noise for variation\n      vec3 accentMix = accentColor * noise * 0.2 * (1.0 - layerDepth);\n      \n      // Inner glow\n      float innerGlow = (1.0 - fresnel) * noise * 0.2 * (0.3 + layerDepth * 0.7);\n      \n      // Compose final color\n      vec3 finalColor = surfaceColor * hologramBrightness * (fresnel * 0.8 + innerGlow);\n      finalColor += veinColor * veinIntensity * 0.5 * hologramBrightness;\n      finalColor += accentMix;\n      \n      // Brighten vein peaks\n      finalColor += vec3(0.8, 0.9, 1.0) * veinIntensity * veinIntensity * 0.15;\n      finalColor = clamp(finalColor, 0.0, 2.0);\n      \n      // Opacity: edges and veins visible, center transparent\n      float baseAlpha = mix(0.02, 0.06, layerDepth);\n      float alpha = baseAlpha + fresnel * 0.6 + veinIntensity * 0.3 + innerGlow;\n      alpha *= hologramOpacity;\n      alpha = clamp(alpha, 0.0, 1.0);\n      \n      gl_FragColor = vec4(finalColor, alpha);\n    }\n  ");
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$5a94e5eb$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__e__as__extend$3e$__["extend"])({
     NeuralBrainShaderMaterial
 });
@@ -987,13 +989,15 @@ function NeuralBrainRegionMesh(param) {
     const collections = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$collection$2d$mapping$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCollectionsForRegion"])(entry.id);
     const layerDepth = getLayerDepth(entry.id);
     // Outer = more transparent, wider fresnel
-    const baseFresnelAmount = layerDepth === 0 ? 0.35 : layerDepth === 0.5 ? 0.5 : 0.65;
-    const baseBrightness = layerDepth === 0 ? 0.25 : layerDepth === 0.5 ? 0.5 : 0.8;
-    const baseOpacity = layerDepth === 0 ? 0.35 : layerDepth === 0.5 ? 0.6 : 0.9;
+    const baseFresnelAmount = layerDepth === 0 ? 0.4 : layerDepth === 0.5 ? 0.45 : 0.5;
+    const baseBrightness = layerDepth === 0 ? 0.3 : layerDepth === 0.5 ? 0.4 : 0.5;
+    const baseOpacity = layerDepth === 0 ? 0.4 : layerDepth === 0.5 ? 0.5 : 0.55;
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$5a94e5eb$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__D__as__useFrame$3e$__["useFrame"])({
-        "NeuralBrainRegionMesh.useFrame": ()=>{
+        "NeuralBrainRegionMesh.useFrame": (param)=>{
+            let { clock } = param;
             if (!matRef.current) return;
             const hovered = hoveredRef.current;
+            matRef.current.uniforms.time.value = clock.getElapsedTime();
             // Adjust brightness on hover/select
             let targetBrightness = baseBrightness;
             let targetOpacity = baseOpacity;
@@ -1044,7 +1048,9 @@ function NeuralBrainRegionMesh(param) {
                     ref: matRef,
                     fresnelAmount: baseFresnelAmount,
                     fresnelOpacity: 1.0,
-                    hologramColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x00ccff),
+                    outerColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x8844cc),
+                    innerColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x22aaff),
+                    accentColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0xcc44aa),
                     hologramBrightness: baseBrightness,
                     hologramOpacity: baseOpacity,
                     noiseScale: 0.8,
@@ -1052,12 +1058,12 @@ function NeuralBrainRegionMesh(param) {
                     ...__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$shaders$2f$NeuralBrainMaterial$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["NEURAL_MATERIAL_DEFAULTS"]
                 }, void 0, false, {
                     fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                    lineNumber: 169,
+                    lineNumber: 171,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 148,
+                lineNumber: 150,
                 columnNumber: 7
             }, this),
             showLabel && geometry && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(NeuralRegionLabel, {
@@ -1068,13 +1074,13 @@ function NeuralBrainRegionMesh(param) {
                 isSelected: isSelected
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 183,
+                lineNumber: 187,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 147,
+        lineNumber: 149,
         columnNumber: 5
     }, this);
 }
@@ -1118,7 +1124,7 @@ function NeuralRegionLabel(param) {
                 children: entry.name
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 219,
+                lineNumber: 223,
                 columnNumber: 7
             }, this),
             activityIntensity > 0.1 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$drei$2f$web$2f$Html$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Html"], {
@@ -1136,7 +1142,7 @@ function NeuralRegionLabel(param) {
                             children: collections.length > 0 ? "".concat(collections.length, " collection").concat(collections.length > 1 ? "s" : "") : "Active"
                         }, void 0, false, {
                             fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                            lineNumber: 232,
+                            lineNumber: 236,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1147,24 +1153,24 @@ function NeuralRegionLabel(param) {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                            lineNumber: 237,
+                            lineNumber: 241,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                    lineNumber: 231,
+                    lineNumber: 235,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 230,
+                lineNumber: 234,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 218,
+        lineNumber: 222,
         columnNumber: 5
     }, this);
 }
@@ -1189,7 +1195,7 @@ function LoadingProgress(param) {
                         className: "w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin"
                     }, void 0, false, {
                         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                        lineNumber: 259,
+                        lineNumber: 263,
                         columnNumber: 11
                     }, this),
                     "Loading neural map... ",
@@ -1199,17 +1205,17 @@ function LoadingProgress(param) {
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 258,
+                lineNumber: 262,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-            lineNumber: 257,
+            lineNumber: 261,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 256,
+        lineNumber: 260,
         columnNumber: 5
     }, this);
 }
@@ -1242,20 +1248,20 @@ function NeuralBrain3DViewer() {
                 total: visibleEntries.length
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 283,
+                lineNumber: 287,
                 columnNumber: 7
             }, this),
             visibleEntries.map((entry)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(NeuralBrainRegionMesh, {
                     entry: entry
                 }, entry.id, false, {
                     fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                    lineNumber: 285,
+                    lineNumber: 289,
                     columnNumber: 9
                 }, this))
         ]
     }, void 0, true, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 282,
+        lineNumber: 286,
         columnNumber: 5
     }, this);
 }
@@ -1290,11 +1296,11 @@ function NeuralEffects() {
         multisampling: 0,
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$postprocessing$2f$dist$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Bloom"], {
-                intensity: 0.9,
-                luminanceThreshold: 0.15,
+                intensity: 1.1,
+                luminanceThreshold: 0.12,
                 luminanceSmoothing: 0.95,
                 mipmapBlur: true,
-                radius: 0.7
+                radius: 0.75
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralEffects.tsx",
                 lineNumber: 9,

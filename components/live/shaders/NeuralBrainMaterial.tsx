@@ -13,7 +13,9 @@ const NeuralBrainShaderMaterial = shaderMaterial(
     time: 0,
     fresnelAmount: 0.65,
     fresnelOpacity: 1.0,
-    hologramColor: new Color(0x00ccff),
+    outerColor: new Color(0x8844cc),    // Purple for outer edges
+    innerColor: new Color(0x22aaff),    // Cyan-blue for inner glow
+    accentColor: new Color(0xcc44aa),   // Pink/magenta accent
     hologramBrightness: 0.8,
     hologramOpacity: 1.0,
     noiseScale: 0.8,
@@ -26,11 +28,13 @@ const NeuralBrainShaderMaterial = shaderMaterial(
     varying vec2 vUv;
     varying vec3 vPositionW;
     varying vec3 vNormalW;
+    varying vec3 vLocalPos;
     varying vec4 vPos;
 
     void main() {
       vUv = uv;
       vNormal = normalize(normalMatrix * normal);
+      vLocalPos = position;
       
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       vViewPosition = -mvPosition.xyz;
@@ -46,7 +50,9 @@ const NeuralBrainShaderMaterial = shaderMaterial(
     uniform float time;
     uniform float fresnelAmount;
     uniform float fresnelOpacity;
-    uniform vec3 hologramColor;
+    uniform vec3 outerColor;
+    uniform vec3 innerColor;
+    uniform vec3 accentColor;
     uniform float hologramBrightness;
     uniform float hologramOpacity;
     uniform float noiseScale;
@@ -57,6 +63,7 @@ const NeuralBrainShaderMaterial = shaderMaterial(
     varying vec2 vUv;
     varying vec3 vPositionW;
     varying vec3 vNormalW;
+    varying vec3 vLocalPos;
     varying vec4 vPos;
     
     // Simplex-style noise for organic variation
@@ -128,31 +135,43 @@ const NeuralBrainShaderMaterial = shaderMaterial(
       float fresnelBase = dot(viewDir, vNormalW);
       float fresnel = clamp(fresnelAmount - fresnelBase * (1.6 - fresnelOpacity / 2.0), 0.0, fresnelOpacity);
       
-      // Smooth noise - only large-scale variation, no fine grain
-      float noise = snoise(vPositionW * noiseScale) * 0.5 + 0.5;
+      // Noise in local space with slow time drift
+      float t = time * 0.15;
+      float noise = snoise(vLocalPos * noiseScale + t) * 0.5 + 0.5;
       
-      // Broad vein-like patterns
-      float veins = abs(snoise(vPositionW * noiseScale * 1.5));
-      veins = pow(1.0 - veins, 3.0);
+      // Single vein/pathway pattern with slower drift
+      float veins = abs(snoise(vLocalPos * noiseScale * 1.5 + t * 0.7));
+      veins = clamp(1.0 - veins, 0.0, 1.0);
+      veins = veins * veins * veins;
       
-      float veinIntensity = veins * 0.5;
+      float veinIntensity = clamp(veins, 0.0, 1.0);
       
-      // Color: base hologram color, brighter at veins and edges
-      vec3 baseColor = hologramColor * hologramBrightness;
+      // Color gradient: purple at edges -> cyan at center/veins
+      // Outer layers are more purple, inner layers more cyan
+      float colorMix = fresnel * 0.6 + (1.0 - layerDepth) * 0.4;
+      vec3 surfaceColor = mix(innerColor, outerColor, colorMix);
       
-      // Inner glow: slight brightness in center areas, controlled by layerDepth
-      float innerGlow = (1.0 - fresnel) * noise * 0.15 * (0.5 + layerDepth * 0.5);
+      // Veins glow brighter cyan/white
+      vec3 veinColor = mix(innerColor, vec3(0.7, 0.85, 1.0), 0.4);
       
-      // Combine: fresnel edges + vein patterns + inner glow
-      vec3 finalColor = baseColor * (fresnel + veinIntensity * 0.4 + innerGlow);
+      // Accent color mixed in via noise for variation
+      vec3 accentMix = accentColor * noise * 0.2 * (1.0 - layerDepth);
       
-      // Add slight color variation to veins (whiter at peaks)
-      finalColor += vec3(1.0) * veinIntensity * 0.15;
+      // Inner glow
+      float innerGlow = (1.0 - fresnel) * noise * 0.2 * (0.3 + layerDepth * 0.7);
       
-      // Opacity: edges bright, center mostly transparent
-      // Outer layers much more transparent than inner
-      float baseAlpha = mix(0.03, 0.08, layerDepth);
-      float alpha = baseAlpha + fresnel * 0.7 + veinIntensity * 0.2 + innerGlow;
+      // Compose final color
+      vec3 finalColor = surfaceColor * hologramBrightness * (fresnel * 0.8 + innerGlow);
+      finalColor += veinColor * veinIntensity * 0.5 * hologramBrightness;
+      finalColor += accentMix;
+      
+      // Brighten vein peaks
+      finalColor += vec3(0.8, 0.9, 1.0) * veinIntensity * veinIntensity * 0.15;
+      finalColor = clamp(finalColor, 0.0, 2.0);
+      
+      // Opacity: edges and veins visible, center transparent
+      float baseAlpha = mix(0.02, 0.06, layerDepth);
+      float alpha = baseAlpha + fresnel * 0.6 + veinIntensity * 0.3 + innerGlow;
       alpha *= hologramOpacity;
       alpha = clamp(alpha, 0.0, 1.0);
       
@@ -169,7 +188,9 @@ declare module "@react-three/fiber" {
       time?: number;
       fresnelAmount?: number;
       fresnelOpacity?: number;
-      hologramColor?: Color;
+      outerColor?: Color;
+      innerColor?: Color;
+      accentColor?: Color;
       hologramBrightness?: number;
       hologramOpacity?: number;
       noiseScale?: number;

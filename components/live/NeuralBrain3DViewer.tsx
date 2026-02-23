@@ -106,13 +106,15 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
   const layerDepth = getLayerDepth(entry.id);
 
   // Outer = more transparent, wider fresnel
-  const baseFresnelAmount = layerDepth === 0 ? 0.35 : layerDepth === 0.5 ? 0.5 : 0.65;
-  const baseBrightness = layerDepth === 0 ? 0.25 : layerDepth === 0.5 ? 0.5 : 0.8;
-  const baseOpacity = layerDepth === 0 ? 0.35 : layerDepth === 0.5 ? 0.6 : 0.9;
+  const baseFresnelAmount = layerDepth === 0 ? 0.4 : layerDepth === 0.5 ? 0.45 : 0.5;
+  const baseBrightness = layerDepth === 0 ? 0.3 : layerDepth === 0.5 ? 0.4 : 0.5;
+  const baseOpacity = layerDepth === 0 ? 0.4 : layerDepth === 0.5 ? 0.5 : 0.55;
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (!matRef.current) return;
     const hovered = hoveredRef.current;
+
+    matRef.current.uniforms.time.value = clock.getElapsedTime();
 
     // Adjust brightness on hover/select
     let targetBrightness = baseBrightness;
@@ -170,7 +172,9 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
           ref={matRef}
           fresnelAmount={baseFresnelAmount}
           fresnelOpacity={1.0}
-          hologramColor={new THREE.Color(0x00ccff)}
+          outerColor={new THREE.Color(0x8844cc)}
+          innerColor={new THREE.Color(0x22aaff)}
+          accentColor={new THREE.Color(0xcc44aa)}
           hologramBrightness={baseBrightness}
           hologramOpacity={baseOpacity}
           noiseScale={0.8}
