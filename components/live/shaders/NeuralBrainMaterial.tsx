@@ -160,18 +160,20 @@ const NeuralBrainShaderMaterial = shaderMaterial(
       // Inner glow
       float innerGlow = (1.0 - fresnel) * noise * 0.2 * (0.3 + layerDepth * 0.7);
       
-      // Compose final color
+      // Compose final color - noise is a subtle undertone, not dominant
       vec3 finalColor = surfaceColor * hologramBrightness * (fresnel * 0.8 + innerGlow);
-      finalColor += veinColor * veinIntensity * 0.5 * hologramBrightness;
-      finalColor += accentMix;
+      finalColor += veinColor * veinIntensity * 0.25 * hologramBrightness;
+      finalColor += accentMix * 0.6;
       
-      // Brighten vein peaks
-      finalColor += vec3(0.8, 0.9, 1.0) * veinIntensity * veinIntensity * 0.15;
+      // Subtle vein brightening
+      finalColor += vec3(0.8, 0.9, 1.0) * veinIntensity * veinIntensity * 0.08;
       finalColor = clamp(finalColor, 0.0, 2.0);
       
-      // Opacity: edges and veins visible, center transparent
-      float baseAlpha = mix(0.02, 0.06, layerDepth);
-      float alpha = baseAlpha + fresnel * 0.6 + veinIntensity * 0.3 + innerGlow;
+      // Opacity: fresnel edges dominant, veins as subtle accent
+      float fillAmount = mix(0.0, 0.05, layerDepth);
+      float fresnelAlpha = fresnel * mix(0.4, 0.6, layerDepth);
+      float veinAlpha = veinIntensity * mix(0.2, 0.15, layerDepth);
+      float alpha = fillAmount + fresnelAlpha + veinAlpha + innerGlow;
       alpha *= hologramOpacity;
       alpha = clamp(alpha, 0.0, 1.0);
       
