@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { shaderMaterial } from "@react-three/drei";
 import { extend } from "@react-three/fiber";
 import {
@@ -235,7 +236,7 @@ extend({ NeuralBrainShaderMaterial });
 
 declare module "@react-three/fiber" {
   interface ThreeElements {
-    neuralBrainShaderMaterial: JSX.IntrinsicElements["shaderMaterial"] & {
+    neuralBrainShaderMaterial: React.JSX.IntrinsicElements["shaderMaterial"] & {
       time?: number;
       fresnelAmount?: number;
       fresnelOpacity?: number;

@@ -1,0 +1,11 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/brain-events/route": "/api/brain-events",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/api/ws/route": "/api/ws",
+  "/api/brain-events/stream/route": "/api/brain-events/stream",
+  "/login/page": "/login",
+  "/page": "/",
+  "/live/page": "/live",
+  "/explorer/page": "/explorer"
+}

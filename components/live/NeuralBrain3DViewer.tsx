@@ -93,20 +93,6 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
   const hoveredRef = useRef(false);
   const [, forceUpdate] = useState(0);
 
-  // Full wireframe - outer layers more transparent
-  const isOuter = OUTER_IDS.has(entry.id);
-  const wireframeMaterial = useMemo(() => {
-    const mat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(0x77bbff),
-      wireframe: true,
-      transparent: true,
-      opacity: isOuter ? 0.05 : 0.08,
-      depthWrite: false,
-    });
-    mat.blending = THREE.AdditiveBlending;
-    return mat;
-  }, [isOuter]);
-
   const {
     selectedRegionId,
     selectRegion,
@@ -133,6 +119,10 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
     if (id === "ventricles") {
       return { outer: new THREE.Color(0x3355bb), inner: new THREE.Color(0x33bbff), accent: new THREE.Color(0x5577cc), noiseScale: 0.5, textureType: 6 };
     }
+    // Basal ganglia - warm amber-purple
+    if (["caudate-nucleus", "putamen", "globus-pallidus", "nucleus-accumbens", "subthalamic-nucleus"].includes(id)) {
+      return { outer: new THREE.Color(0x7744aa), inner: new THREE.Color(0xbb77dd), accent: new THREE.Color(0x9955bb), noiseScale: 1.0, textureType: 3 };
+    }
     
     switch (cat) {
       case "cerebrum":
@@ -146,16 +136,55 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
       case "endocrine":
         return { outer: new THREE.Color(0x4466aa), inner: new THREE.Color(0x44ddcc), accent: new THREE.Color(0x6688bb), noiseScale: 1.0, textureType: 3 };
       case "peripheral":
-        return { outer: new THREE.Color(0x3366aa), inner: new THREE.Color(0x22ddbb), accent: new THREE.Color(0x4488aa), noiseScale: 0.8, textureType: 5 };
+        return { outer: new THREE.Color(0x2277aa), inner: new THREE.Color(0x22eebb), accent: new THREE.Color(0x33aa88), noiseScale: 0.8, textureType: 5 };
       default:
         return { outer: new THREE.Color(0x5544aa), inner: new THREE.Color(0x22bbff), accent: new THREE.Color(0x7744bb), noiseScale: 0.8, textureType: 0 };
     }
   }, [entry.id, entry.category]);
 
-  // Outer much more transparent, inner more solid
-  const baseFresnelAmount = layerDepth === 0 ? 0.55 : layerDepth === 0.5 ? 0.5 : 0.45;
-  const baseBrightness = layerDepth === 0 ? 0.2 : layerDepth === 0.5 ? 0.4 : 0.5;
-  const baseOpacity = layerDepth === 0 ? 0.25 : layerDepth === 0.5 ? 0.5 : 0.55;
+  // Full wireframe - color matches region, outer layers more transparent
+  const isOuterWire = OUTER_IDS.has(entry.id);
+  const wireframeMaterial = useMemo(() => {
+    const mat = new THREE.MeshBasicMaterial({
+      color: regionStyle.inner,
+      wireframe: true,
+      transparent: true,
+      opacity: isOuterWire ? 0.05 : 0.08,
+      depthWrite: false,
+    });
+    mat.blending = THREE.AdditiveBlending;
+    return mat;
+  }, [isOuterWire, regionStyle.inner]);
+
+  // Hemispheres get asymmetric baselines for visual separation
+  const isLeftHemi = entry.id === "left-hemisphere";
+  const isRightHemi = entry.id === "right-hemisphere";
+  
+  let baseFresnelAmount: number, baseBrightness: number, baseOpacity: number;
+  
+  if (isLeftHemi) {
+    baseFresnelAmount = 0.58;
+    baseBrightness = 0.25;
+    baseOpacity = 0.2;
+  } else if (isRightHemi) {
+    // Right hemisphere: elevated to ~selected level
+    baseFresnelAmount = 0.7;
+    baseBrightness = 0.6;
+    baseOpacity = 0.5;
+  } else if (layerDepth === 0) {
+    // Other outer (cerebellum, corpus callosum): between old and hover
+    baseFresnelAmount = 0.6;
+    baseBrightness = 0.45;
+    baseOpacity = 0.35;
+  } else if (layerDepth === 0.5) {
+    baseFresnelAmount = 0.5;
+    baseBrightness = 0.4;
+    baseOpacity = 0.5;
+  } else {
+    baseFresnelAmount = 0.45;
+    baseBrightness = 0.5;
+    baseOpacity = 0.55;
+  }
 
   useFrame(({ clock }) => {
     if (!matRef.current) return;
@@ -169,14 +198,14 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
     let targetFresnel = baseFresnelAmount;
 
     if (hovered) {
+      targetBrightness += 0.3;
+      targetOpacity = Math.min(targetOpacity + 0.15, 1.0);
+      targetFresnel = Math.min(targetFresnel + 0.1, 0.95);
+    }
+    if (isSelected) {
       targetBrightness += 0.4;
       targetOpacity = Math.min(targetOpacity + 0.2, 1.0);
       targetFresnel = Math.min(targetFresnel + 0.15, 0.95);
-    }
-    if (isSelected) {
-      targetBrightness += 0.5;
-      targetOpacity = Math.min(targetOpacity + 0.3, 1.0);
-      targetFresnel = Math.min(targetFresnel + 0.2, 0.95);
     }
     if (activityIntensity > 0) {
       targetBrightness += activityIntensity * 0.4;
@@ -232,7 +261,6 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
       {/* Shader surface */}
       {showShader && (
         <mesh geometry={geometry}>
-          {/* @ts-expect-error - custom shader material JSX */}
           <neuralBrainShaderMaterial
             ref={matRef}
             fresnelAmount={baseFresnelAmount}

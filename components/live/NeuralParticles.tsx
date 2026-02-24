@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useLiveStore } from "@/lib/live-store";
@@ -63,14 +63,6 @@ export default function NeuralParticles() {
     }
     return col;
   }, []);
-
-  const sizes = useMemo(() => {
-    const siz = new Float32Array(PARTICLE_COUNT);
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      siz[i] = particles[i].size;
-    }
-    return siz;
-  }, [particles]);
 
   useFrame((state, delta) => {
     if (!pointsRef.current) return;
@@ -142,12 +134,14 @@ export default function NeuralParticles() {
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
+          args={[positions, 3]}
           count={PARTICLE_COUNT}
           array={positions}
           itemSize={3}
         />
         <bufferAttribute
           attach="attributes-color"
+          args={[colors, 3]}
           count={PARTICLE_COUNT}
           array={colors}
           itemSize={3}
