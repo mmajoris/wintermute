@@ -133,3 +133,85 @@ export function getRegionForQueue(queue: string): string | null {
 export function getCollectionsForRegion(region: string): string[] {
   return REGION_TO_COLLECTIONS[region] ?? [];
 }
+
+// Neurotransmitter pathway definitions (biologically accurate)
+export interface NeurotransmitterPathway {
+  source: string;
+  targets: string[];
+  color: string; // hex color for visualization
+}
+
+export const NEUROTRANSMITTER_PATHWAYS: Record<string, NeurotransmitterPathway> = {
+  dopamine: {
+    source: "substantia-nigra",
+    targets: ["nucleus-accumbens", "caudate-nucleus", "putamen", "left-hemisphere"],
+    color: "#ff8833",
+  },
+  serotonin: {
+    source: "pons",
+    targets: ["amygdala", "hippocampus", "left-hemisphere", "right-hemisphere", "hypothalamus"],
+    color: "#33ddaa",
+  },
+  norepinephrine: {
+    source: "pons",
+    targets: ["thalamus", "amygdala", "hippocampus", "left-hemisphere", "cerebellum"],
+    color: "#ff5544",
+  },
+  acetylcholine: {
+    source: "pons",
+    targets: ["hippocampus", "left-hemisphere", "right-hemisphere", "thalamus"],
+    color: "#ffcc33",
+  },
+  gaba: {
+    source: "globus-pallidus",
+    targets: ["thalamus", "substantia-nigra", "subthalamic-nucleus"],
+    color: "#6644cc",
+  },
+  glutamate: {
+    source: "thalamus",
+    targets: ["left-hemisphere", "right-hemisphere", "hippocampus", "amygdala"],
+    color: "#44aaff",
+  },
+};
+
+// Which neurotransmitter pathway fires for which event type
+export function getPathwayForEvent(eventType: string): string | null {
+  switch (eventType) {
+    case "reward_signal": return "dopamine";
+    case "emotional_state": return "serotonin";
+    case "thought_loop_tick": return "glutamate";
+    case "memory_event": return "acetylcholine";
+    case "thalamic_gate": return "glutamate";
+    case "hippocampal_cascade": return "acetylcholine";
+    case "error_correction": return "norepinephrine";
+    default: return null;
+  }
+}
+
+// Region centers in 3D space (approximate, for drawing pathways between regions)
+export const REGION_CENTERS: Record<string, [number, number, number]> = {
+  "left-hemisphere": [-3, 10, 0],
+  "right-hemisphere": [3, 10, 0],
+  "cerebellum": [0, 3, -4],
+  "midbrain": [0, 6, -1],
+  "pons": [0, 4, -2],
+  "medulla": [0, 2, -2],
+  "hippocampus": [-2.5, 6, 1],
+  "amygdala": [-3, 5.5, 2],
+  "hypothalamus": [0, 6, 1],
+  "thalamus": [0, 8, 0],
+  "corpus-callosum": [0, 10, 0],
+  "ventricles": [0, 8, 0],
+  "caudate-nucleus": [-1.5, 9, 1],
+  "putamen": [-2.5, 8, 1.5],
+  "globus-pallidus": [-2, 7.5, 1],
+  "nucleus-accumbens": [-1, 5, 2],
+  "substantia-nigra": [0, 5, -1.5],
+  "subthalamic-nucleus": [-1, 6, 0.5],
+  "pituitary": [0, 5, 2],
+  "auditory-cortex": [-5, 7, 2],
+  "entorhinal-cortex": [-3, 4, 3],
+  "dentate-gyrus": [-2, 5.5, 1.5],
+  "subiculum": [-2, 5, 1],
+  "olfactory-bulb": [0, 5, 5],
+};

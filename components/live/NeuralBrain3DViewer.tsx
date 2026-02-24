@@ -98,11 +98,31 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
     selectRegion,
     hoverRegion,
     regionActivity,
+    spreadingActivations,
   } = useLiveStore();
 
   const isSelected = selectedRegionId === entry.id;
   const activity = regionActivity.get(entry.id);
-  const activityIntensity = activity?.intensity ?? 0;
+  const baseActivityIntensity = activity?.intensity ?? 0;
+  
+  // Check if this region is part of any active spreading activation
+  const spreadBoost = useMemo(() => {
+    const now = Date.now();
+    let boost = 0;
+    for (const spread of spreadingActivations) {
+      const elapsed = now - spread.startedAt;
+      for (const node of spread.nodes) {
+        if (node.regionId === entry.id && elapsed >= node.delay && elapsed < node.delay + 1500) {
+          const progress = (elapsed - node.delay) / 1500;
+          const wave = Math.sin(progress * Math.PI) * node.intensity;
+          boost = Math.max(boost, wave);
+        }
+      }
+    }
+    return boost;
+  }, [spreadingActivations, entry.id]);
+  
+  const activityIntensity = Math.min(1, baseActivityIntensity + spreadBoost);
   const collections = getCollectionsForRegion(entry.id);
   const layerDepth = getLayerDepth(entry.id);
 

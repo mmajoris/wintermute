@@ -11,6 +11,7 @@ import { LAYER_GROUPS } from "@/lib/brain-model-loader";
 import { NeuralBrainViewProvider } from "./NeuralBrain3DViewer";
 import NeuralBrain3DViewer from "./NeuralBrain3DViewer";
 import NeuralEffects from "./NeuralEffects";
+import NeuralPathways from "./NeuralPathways";
 import LiveTopBar from "./LiveTopBar";
 import LiveProcessPanel from "./LiveProcessPanel";
 import LiveMetricsBar from "./LiveMetricsBar";
@@ -261,6 +262,7 @@ export default function LiveBrainMonitor() {
         <Suspense fallback={null}>
           <NeuralBrainViewProvider visibleIds={visibleIds}>
             <RotatingBrain />
+            <NeuralPathways />
           </NeuralBrainViewProvider>
           <Stars
             radius={120}

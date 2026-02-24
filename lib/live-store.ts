@@ -10,7 +10,10 @@ import {
   getRegionForCollection,
   getRegionForWorker,
   getRegionForQueue,
+  getPathwayForEvent,
+  NEUROTRANSMITTER_PATHWAYS,
 } from "./collection-mapping";
+import type { HippocampalCascadeEvent, ThalamicGateEvent, LLMCallEvent } from "./brain-events";
 
 export interface RegionActivity {
   regionId: string;
@@ -34,6 +37,31 @@ export interface QueueStatus {
   failed: number;
 }
 
+export interface PathwayActivation {
+  pathway: string;
+  startedAt: number;
+  intensity: number;
+}
+
+export interface SpreadingNode {
+  regionId: string;
+  delay: number;
+  intensity: number;
+}
+
+export interface SpreadingActivation {
+  id: string;
+  startedAt: number;
+  nodes: SpreadingNode[];
+}
+
+export interface CognitiveProcess {
+  name: string;
+  status: "active" | "completed";
+  tier?: string;
+  startedAt: number;
+}
+
 export interface LiveStore {
   connected: boolean;
   connectionError: string | null;
@@ -51,6 +79,14 @@ export interface LiveStore {
   lastThoughtTick: ThoughtLoopTickEvent | null;
   thoughtLoopPulse: number;
 
+  pathwayActivations: PathwayActivation[];
+  spreadingActivations: SpreadingActivation[];
+  activeProcesses: CognitiveProcess[];
+  dopamineLevel: number;
+  lastLLMCall: LLMCallEvent | null;
+  lastThalamicGate: ThalamicGateEvent | null;
+  lastCascade: HippocampalCascadeEvent | null;
+
   selectedRegionId: string | null;
   hoveredRegionId: string | null;
 
@@ -62,6 +98,8 @@ export interface LiveStore {
   hoverRegion: (id: string | null) => void;
   decayActivity: () => void;
   triggerThoughtPulse: () => void;
+  triggerPathway: (pathway: string) => void;
+  triggerSpreadingActivation: (sourceRegion: string, connectedRegions: string[]) => void;
 }
 
 const ACTIVITY_DECAY_RATE = 0.92;
@@ -84,6 +122,14 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   systemVitals: null,
   lastThoughtTick: null,
   thoughtLoopPulse: 0,
+
+  pathwayActivations: [],
+  spreadingActivations: [],
+  activeProcesses: [],
+  dopamineLevel: 0.5,
+  lastLLMCall: null,
+  lastThalamicGate: null,
+  lastCascade: null,
 
   selectedRegionId: null,
   hoveredRegionId: null,
@@ -159,6 +205,8 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
 
       case "emotional_state":
         updates.emotionalState = event;
+        activateRegion(newRegionActivity, "amygdala", now, "emotion");
+        get().triggerPathway("serotonin");
         break;
 
       case "system_vitals":
@@ -177,16 +225,66 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
 
       case "memory_event": {
         activateRegion(newRegionActivity, "hippocampus", now, "memory");
+        if (event.operation === "retrieve") {
+          get().triggerSpreadingActivation("hippocampus", [
+            "entorhinal-cortex", "dentate-gyrus", "subiculum",
+            "left-hemisphere", "amygdala",
+          ]);
+          const pathway = getPathwayForEvent(event.type);
+          if (pathway) get().triggerPathway(pathway);
+        }
         break;
       }
 
       case "reward_signal": {
         activateRegion(newRegionActivity, "nucleus-accumbens", now, "reward");
+        activateRegion(newRegionActivity, "substantia-nigra", now, "reward");
+        const dopamine = 0.5 + (event.actual_reward || 0);
+        updates.dopamineLevel = Math.max(0, Math.min(1, dopamine));
+        get().triggerPathway("dopamine");
         break;
       }
 
       case "error_correction": {
         activateRegion(newRegionActivity, "cerebellum", now, "error_correction");
+        const pathway = getPathwayForEvent(event.type);
+        if (pathway) get().triggerPathway(pathway);
+        break;
+      }
+
+      case "thalamic_gate": {
+        activateRegion(newRegionActivity, "thalamus", now, "thalamic_gate");
+        updates.lastThalamicGate = event as ThalamicGateEvent;
+        if ((event as ThalamicGateEvent).passed) {
+          get().triggerPathway("glutamate");
+          activateRegion(newRegionActivity, "left-hemisphere", now, "gate_passed");
+        }
+        break;
+      }
+
+      case "hippocampal_cascade": {
+        const cascade = event as HippocampalCascadeEvent;
+        updates.lastCascade = cascade;
+        activateRegion(newRegionActivity, "hippocampus", now, "cascade");
+        get().triggerSpreadingActivation("hippocampus", [
+          "entorhinal-cortex", "dentate-gyrus", "subiculum",
+          "left-hemisphere", "amygdala", "thalamus",
+        ]);
+        get().triggerPathway("acetylcholine");
+        break;
+      }
+
+      case "llm_call": {
+        updates.lastLLMCall = event as LLMCallEvent;
+        const proc: CognitiveProcess = {
+          name: `LLM ${(event as LLMCallEvent).tier}`,
+          status: (event as LLMCallEvent).status === "started" ? "active" : "completed",
+          tier: (event as LLMCallEvent).tier,
+          startedAt: now,
+        };
+        const procs = state.activeProcesses.filter(p => p.name !== proc.name);
+        if (proc.status === "active") procs.push(proc);
+        updates.activeProcesses = procs;
         break;
       }
     }
@@ -224,13 +322,56 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
 
     const newPulse = state.thoughtLoopPulse * 0.95;
 
+    // Decay pathway activations
+    const newPathways = state.pathwayActivations
+      .map(p => ({ ...p, intensity: p.intensity * 0.96 }))
+      .filter(p => p.intensity > 0.05);
+
+    // Clean up expired spreading activations (3s lifetime)
+    const newSpreading = state.spreadingActivations
+      .filter(s => now - s.startedAt < 3000);
+
+    // Clean up completed processes (5s after completion)
+    const newProcesses = state.activeProcesses
+      .filter(p => p.status === "active" || now - p.startedAt < 5000);
+
     set({
       regionActivity: newRegionActivity,
       thoughtLoopPulse: newPulse < 0.01 ? 0 : newPulse,
+      pathwayActivations: newPathways,
+      spreadingActivations: newSpreading,
+      activeProcesses: newProcesses,
     });
   },
 
   triggerThoughtPulse: () => set({ thoughtLoopPulse: 1 }),
+
+  triggerPathway: (pathway) => {
+    const state = get();
+    const existing = state.pathwayActivations.filter(
+      p => Date.now() - p.startedAt < 3000
+    );
+    existing.push({ pathway, startedAt: Date.now(), intensity: 1 });
+    set({ pathwayActivations: existing });
+  },
+
+  triggerSpreadingActivation: (sourceRegion, connectedRegions) => {
+    const state = get();
+    const id = `spread_${Date.now()}`;
+    const nodes: SpreadingNode[] = [
+      { regionId: sourceRegion, delay: 0, intensity: 1 },
+      ...connectedRegions.map((r, i) => ({
+        regionId: r,
+        delay: (i + 1) * 200,
+        intensity: 0.7 - i * 0.1,
+      })),
+    ];
+    const active = state.spreadingActivations.filter(
+      s => Date.now() - s.startedAt < 3000
+    );
+    active.push({ id, startedAt: Date.now(), nodes });
+    set({ spreadingActivations: active });
+  },
 }));
 
 function activateRegion(

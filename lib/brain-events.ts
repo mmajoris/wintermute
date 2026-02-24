@@ -121,6 +121,35 @@ export interface ErrorCorrectionEvent {
   correction_applied: boolean;
 }
 
+export interface ThalamicGateEvent {
+  type: "thalamic_gate";
+  timestamp: string;
+  signal_type: string;
+  signal_source: string;
+  passed: boolean;
+  content?: string;
+}
+
+export interface HippocampalCascadeEvent {
+  type: "hippocampal_cascade";
+  timestamp: string;
+  total_activated: number;
+  hop1_count: number;
+  hop2_count: number;
+  narrative_count: number;
+  top_score: number;
+}
+
+export interface LLMCallEvent {
+  type: "llm_call";
+  timestamp: string;
+  tier: string;
+  purpose: string;
+  status: "started" | "completed";
+  duration_ms?: number;
+  model?: string;
+}
+
 export type BrainEvent =
   | ThoughtLoopTickEvent
   | CollectionActivityEvent
@@ -133,7 +162,10 @@ export type BrainEvent =
   | BudgetStatusEvent
   | MemoryEvent
   | RewardSignalEvent
-  | ErrorCorrectionEvent;
+  | ErrorCorrectionEvent
+  | ThalamicGateEvent
+  | HippocampalCascadeEvent
+  | LLMCallEvent;
 
 export interface BrainEventEnvelope {
   id: string;
@@ -157,5 +189,8 @@ export function isBrainEvent(obj: unknown): obj is BrainEvent {
     "memory_event",
     "reward_signal",
     "error_correction",
+    "thalamic_gate",
+    "hippocampal_cascade",
+    "llm_call",
   ].includes(event.type);
 }

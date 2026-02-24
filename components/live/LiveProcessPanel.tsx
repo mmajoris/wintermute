@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useLiveStore, getFilteredEvents } from "@/lib/live-store";
 import { BRAIN_MODEL_REGISTRY } from "@/lib/brain-model-loader";
-import { getCollectionsForRegion } from "@/lib/collection-mapping";
+import { getCollectionsForRegion, NEUROTRANSMITTER_PATHWAYS } from "@/lib/collection-mapping";
 import type { BrainEvent } from "@/lib/brain-events";
 
 function formatTimestamp(ts: string): string {
@@ -36,6 +36,9 @@ function EventIcon({ type }: { type: BrainEvent["type"] }) {
     memory_event: { icon: "◇", color: "#14b8a6" },
     reward_signal: { icon: "★", color: "#f472b6" },
     error_correction: { icon: "⟳", color: "#8b5cf6" },
+    thalamic_gate: { icon: "⊙", color: "#f97316" },
+    hippocampal_cascade: { icon: "◎", color: "#14b8a6" },
+    llm_call: { icon: "⧫", color: "#60a5fa" },
   };
 
   const { icon, color } = icons[type] ?? { icon: "•", color: "#666" };
@@ -169,6 +172,97 @@ function EventSummary({ event }: { event: BrainEvent }) {
   }
 }
 
+function NeurotransmitterGauges() {
+  const { pathwayActivations, dopamineLevel } = useLiveStore();
+
+  const levels = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const [name] of Object.entries(NEUROTRANSMITTER_PATHWAYS)) {
+      const active = pathwayActivations.filter(p => p.pathway === name);
+      map[name] = active.length > 0 ? Math.max(...active.map(a => a.intensity)) : 0;
+    }
+    map.dopamine = Math.max(map.dopamine || 0, (dopamineLevel - 0.5) * 2);
+    return map;
+  }, [pathwayActivations, dopamineLevel]);
+
+  const hasActivity = Object.values(levels).some(v => v > 0.05);
+  if (!hasActivity) return null;
+
+  return (
+    <div className="pointer-events-auto backdrop-blur-xl bg-black/50 border border-white/6 rounded-2xl p-4 shrink-0">
+      <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-semibold">
+        Neurotransmitters
+      </span>
+      <div className="mt-2 space-y-1.5">
+        {Object.entries(NEUROTRANSMITTER_PATHWAYS).map(([name, pathway]) => {
+          const level = levels[name] || 0;
+          if (level < 0.02) return null;
+          return (
+            <div key={name} className="flex items-center gap-2 text-[11px]">
+              <span className="w-16 text-neutral-400 capitalize">{name}</span>
+              <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min(level * 100, 100)}%`,
+                    backgroundColor: pathway.color,
+                    boxShadow: `0 0 6px ${pathway.color}60`,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CognitiveProcesses() {
+  const { activeProcesses, lastLLMCall, lastThalamicGate, lastCascade } = useLiveStore();
+
+  if (activeProcesses.length === 0 && !lastLLMCall && !lastThalamicGate && !lastCascade) return null;
+
+  return (
+    <div className="pointer-events-auto backdrop-blur-xl bg-black/50 border border-white/6 rounded-2xl p-4 shrink-0">
+      <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-semibold">
+        Cognitive State
+      </span>
+      <div className="mt-2 space-y-1.5">
+        {activeProcesses.map((proc) => (
+          <div key={proc.name} className="flex items-center gap-2 text-[11px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+            <span className="text-blue-300">{proc.name}</span>
+            {proc.tier && (
+              <span className="text-neutral-600 text-[10px] ml-auto">{proc.tier}</span>
+            )}
+          </div>
+        ))}
+        {lastThalamicGate && (
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-neutral-500">Gate:</span>
+            <span className={lastThalamicGate.passed ? "text-emerald-400" : "text-neutral-600"}>
+              {lastThalamicGate.passed ? "open" : "closed"}
+            </span>
+            {lastThalamicGate.signal_type && (
+              <span className="text-neutral-600 text-[10px]">{lastThalamicGate.signal_type}</span>
+            )}
+          </div>
+        )}
+        {lastCascade && (
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-neutral-500">Cascade:</span>
+            <span className="text-teal-400">{lastCascade.total_activated} memories</span>
+            <span className="text-neutral-600 text-[10px]">
+              h1:{lastCascade.hop1_count} h2:{lastCascade.hop2_count}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function LiveProcessPanel() {
   const {
     recentEvents,
@@ -294,6 +388,9 @@ export default function LiveProcessPanel() {
           </div>
         </div>
       )}
+
+      <CognitiveProcesses />
+      <NeurotransmitterGauges />
 
       {!selectedRegionId && activeRegions.length > 0 && (
         <div className="pointer-events-auto backdrop-blur-xl bg-black/50 border border-white/[0.06] rounded-2xl p-4 shrink-0">
