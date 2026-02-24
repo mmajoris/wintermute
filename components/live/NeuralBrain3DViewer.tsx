@@ -19,6 +19,7 @@ import {
 } from "@/lib/brain-model-loader";
 import { getCollectionsForRegion } from "@/lib/collection-mapping";
 import { NEURAL_MATERIAL_DEFAULTS } from "./shaders/NeuralBrainMaterial";
+import { renderOptionsRef } from "./LiveBrainMonitor";
 import "./shaders/NeuralBrainMaterial";
 
 const geometryCache = new Map<string, THREE.BufferGeometry>();
@@ -92,6 +93,20 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
   const hoveredRef = useRef(false);
   const [, forceUpdate] = useState(0);
 
+  // Full wireframe - outer layers more transparent
+  const isOuter = OUTER_IDS.has(entry.id);
+  const wireframeMaterial = useMemo(() => {
+    const mat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(0x77bbff),
+      wireframe: true,
+      transparent: true,
+      opacity: isOuter ? 0.05 : 0.08,
+      depthWrite: false,
+    });
+    mat.blending = THREE.AdditiveBlending;
+    return mat;
+  }, [isOuter]);
+
   const {
     selectedRegionId,
     selectRegion,
@@ -105,10 +120,42 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
   const collections = getCollectionsForRegion(entry.id);
   const layerDepth = getLayerDepth(entry.id);
 
-  // Outer = more transparent, wider fresnel
-  const baseFresnelAmount = layerDepth === 0 ? 0.4 : layerDepth === 0.5 ? 0.45 : 0.5;
-  const baseBrightness = layerDepth === 0 ? 0.3 : layerDepth === 0.5 ? 0.4 : 0.5;
-  const baseOpacity = layerDepth === 0 ? 0.4 : layerDepth === 0.5 ? 0.5 : 0.55;
+  // Per-category: color, noise scale, and biologically-inspired texture type
+  // 0=cortex, 1=cerebellum, 2=brainstem, 3=limbic, 4=fiber, 5=nerve, 6=fluid
+  const regionStyle = useMemo(() => {
+    const id = entry.id;
+    const cat = entry.category;
+    
+    // Special cases by ID
+    if (id === "corpus-callosum") {
+      return { outer: new THREE.Color(0x4466bb), inner: new THREE.Color(0x55ccff), accent: new THREE.Color(0x6677cc), noiseScale: 0.8, textureType: 4 };
+    }
+    if (id === "ventricles") {
+      return { outer: new THREE.Color(0x3355bb), inner: new THREE.Color(0x33bbff), accent: new THREE.Color(0x5577cc), noiseScale: 0.5, textureType: 6 };
+    }
+    
+    switch (cat) {
+      case "cerebrum":
+        return { outer: new THREE.Color(0x5544aa), inner: new THREE.Color(0x22bbff), accent: new THREE.Color(0x7744bb), noiseScale: 0.7, textureType: 0 };
+      case "cerebellum":
+        return { outer: new THREE.Color(0x4455bb), inner: new THREE.Color(0x22ccff), accent: new THREE.Color(0x6655cc), noiseScale: 0.6, textureType: 1 };
+      case "brainstem":
+        return { outer: new THREE.Color(0x6644aa), inner: new THREE.Color(0x44aaee), accent: new THREE.Color(0x9944aa), noiseScale: 0.8, textureType: 2 };
+      case "limbic":
+        return { outer: new THREE.Color(0x5555bb), inner: new THREE.Color(0x33ccdd), accent: new THREE.Color(0x8855aa), noiseScale: 0.9, textureType: 3 };
+      case "endocrine":
+        return { outer: new THREE.Color(0x4466aa), inner: new THREE.Color(0x44ddcc), accent: new THREE.Color(0x6688bb), noiseScale: 1.0, textureType: 3 };
+      case "peripheral":
+        return { outer: new THREE.Color(0x3366aa), inner: new THREE.Color(0x22ddbb), accent: new THREE.Color(0x4488aa), noiseScale: 0.8, textureType: 5 };
+      default:
+        return { outer: new THREE.Color(0x5544aa), inner: new THREE.Color(0x22bbff), accent: new THREE.Color(0x7744bb), noiseScale: 0.8, textureType: 0 };
+    }
+  }, [entry.id, entry.category]);
+
+  // Outer much more transparent, inner more solid
+  const baseFresnelAmount = layerDepth === 0 ? 0.55 : layerDepth === 0.5 ? 0.5 : 0.45;
+  const baseBrightness = layerDepth === 0 ? 0.2 : layerDepth === 0.5 ? 0.4 : 0.5;
+  const baseOpacity = layerDepth === 0 ? 0.25 : layerDepth === 0.5 ? 0.5 : 0.55;
 
   useFrame(({ clock }) => {
     if (!matRef.current) return;
@@ -139,16 +186,28 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
     u.hologramBrightness.value = THREE.MathUtils.lerp(u.hologramBrightness.value, targetBrightness, 0.1);
     u.hologramOpacity.value = THREE.MathUtils.lerp(u.hologramOpacity.value, targetOpacity, 0.1);
     u.fresnelAmount.value = THREE.MathUtils.lerp(u.fresnelAmount.value, targetFresnel, 0.1);
+
+    // Force per-region values every frame
+    u.noiseScale.value = regionStyle.noiseScale;
+    u.textureType.value = regionStyle.textureType;
+    u.outerColor.value.copy(regionStyle.outer);
+    u.innerColor.value.copy(regionStyle.inner);
+    u.accentColor.value.copy(regionStyle.accent);
+    u.layerDepth.value = layerDepth;
   });
 
   if (!geometry) return null;
 
   const showLabel = hoveredRef.current || isSelected || activityIntensity > 0.3;
 
+  const { showShader, showWireframe } = renderOptionsRef;
+
   return (
     <group>
+      {/* Invisible interaction mesh (always present for hover/click) */}
       <mesh
         geometry={geometry}
+        visible={false}
         onClick={(e) => {
           e.stopPropagation();
           selectRegion(isSelected ? null : entry.id);
@@ -167,21 +226,34 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
           forceUpdate((n) => n + 1);
         }}
       >
-        {/* @ts-expect-error - custom shader material JSX */}
-        <neuralBrainShaderMaterial
-          ref={matRef}
-          fresnelAmount={baseFresnelAmount}
-          fresnelOpacity={1.0}
-          outerColor={new THREE.Color(0x8844cc)}
-          innerColor={new THREE.Color(0x22aaff)}
-          accentColor={new THREE.Color(0xcc44aa)}
-          hologramBrightness={baseBrightness}
-          hologramOpacity={baseOpacity}
-          noiseScale={0.8}
-          layerDepth={layerDepth}
-          {...NEURAL_MATERIAL_DEFAULTS}
-        />
+        <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} />
       </mesh>
+
+      {/* Shader surface */}
+      {showShader && (
+        <mesh geometry={geometry}>
+          {/* @ts-expect-error - custom shader material JSX */}
+          <neuralBrainShaderMaterial
+            ref={matRef}
+            fresnelAmount={baseFresnelAmount}
+            fresnelOpacity={1.0}
+            outerColor={regionStyle.outer}
+            innerColor={regionStyle.inner}
+            accentColor={regionStyle.accent}
+            hologramBrightness={baseBrightness}
+            hologramOpacity={baseOpacity}
+            noiseScale={regionStyle.noiseScale}
+            textureType={regionStyle.textureType}
+            layerDepth={layerDepth}
+            {...NEURAL_MATERIAL_DEFAULTS}
+          />
+        </mesh>
+      )}
+
+      {/* Wireframe */}
+      {showWireframe && (
+        <mesh geometry={geometry} material={wireframeMaterial} />
+      )}
 
       {showLabel && geometry && (
         <NeuralRegionLabel

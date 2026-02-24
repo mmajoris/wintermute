@@ -20,6 +20,7 @@ const NeuralBrainShaderMaterial = shaderMaterial(
     hologramOpacity: 1.0,
     noiseScale: 0.8,
     layerDepth: 0.0,   // 0 = outer, 0.5 = mid, 1.0 = inner
+    textureType: 0.0,  // 0=cortex, 1=cerebellum, 2=brainstem, 3=limbic, 4=fiber, 5=nerve, 6=fluid
   },
   // Vertex shader
   /*glsl*/ `
@@ -57,6 +58,7 @@ const NeuralBrainShaderMaterial = shaderMaterial(
     uniform float hologramOpacity;
     uniform float noiseScale;
     uniform float layerDepth;
+    uniform float textureType;
     
     varying vec3 vNormal;
     varying vec3 vViewPosition;
@@ -135,16 +137,63 @@ const NeuralBrainShaderMaterial = shaderMaterial(
       float fresnelBase = dot(viewDir, vNormalW);
       float fresnel = clamp(fresnelAmount - fresnelBase * (1.6 - fresnelOpacity / 2.0), 0.0, fresnelOpacity);
       
-      // Noise in local space with slow time drift
       float t = time * 0.15;
-      float noise = snoise(vLocalPos * noiseScale + t) * 0.5 + 0.5;
+      float noise = 0.5;
+      float veinIntensity = 0.0;
+      int tType = int(textureType + 0.5);
       
-      // Single vein/pathway pattern with slower drift
-      float veins = abs(snoise(vLocalPos * noiseScale * 1.5 + t * 0.7));
-      veins = clamp(1.0 - veins, 0.0, 1.0);
-      veins = veins * veins * veins;
-      
-      float veinIntensity = clamp(veins, 0.0, 1.0);
+      if (tType == 1) {
+        // CEREBELLUM: tight, regular, parallel ridge folds
+        float ridges = sin(vLocalPos.y * noiseScale * 12.0 + snoise(vLocalPos * noiseScale * 2.0) * 2.0 + t);
+        ridges = clamp(ridges, 0.0, 1.0);
+        ridges = ridges * ridges;
+        noise = snoise(vLocalPos * noiseScale * 2.5 + t * 0.5) * 0.5 + 0.5;
+        veinIntensity = clamp(ridges * 0.7, 0.0, 1.0);
+        
+      } else if (tType == 2) {
+        // BRAINSTEM: vertical fiber bundles, directional streaks
+        float fibers = sin(vLocalPos.y * noiseScale * 8.0 + t * 0.3) * 0.5 + 0.5;
+        float fiberNoise = snoise(vec3(vLocalPos.x * noiseScale * 3.0, vLocalPos.y * noiseScale * 0.5, vLocalPos.z * noiseScale * 3.0) + t * 0.4);
+        fibers *= clamp(fiberNoise + 0.6, 0.0, 1.0);
+        noise = fibers;
+        veinIntensity = clamp(fibers * fibers * 0.6, 0.0, 1.0);
+        
+      } else if (tType == 3) {
+        // LIMBIC: turbulent, clustered, organic nuclei
+        float turb = snoise(vLocalPos * noiseScale * 1.8 + t * 0.8) * 0.5 + 0.5;
+        float cluster = snoise(vLocalPos * noiseScale * 3.0 + 10.0 + t * 0.3) * 0.5 + 0.5;
+        turb = turb * cluster;
+        noise = turb;
+        float veins = clamp(1.0 - abs(snoise(vLocalPos * noiseScale * 2.5 + t * 0.5)), 0.0, 1.0);
+        veinIntensity = clamp(veins * veins * 0.5 + turb * 0.3, 0.0, 1.0);
+        
+      } else if (tType == 4) {
+        // WHITE MATTER (corpus callosum): smooth parallel flowing fibers
+        float flow = snoise(vec3(vLocalPos.x * noiseScale * 0.4, vLocalPos.y * noiseScale * 3.0, vLocalPos.z * noiseScale * 0.4) + t * 0.5);
+        flow = flow * 0.5 + 0.5;
+        noise = flow;
+        float strands = sin(vLocalPos.x * noiseScale * 6.0 + flow * 4.0 + t) * 0.5 + 0.5;
+        veinIntensity = clamp(strands * flow * 0.6, 0.0, 1.0);
+        
+      } else if (tType == 5) {
+        // PERIPHERAL (cranial nerves): elongated linear fibers
+        float stretch = snoise(vec3(vLocalPos.x * noiseScale * 0.5, vLocalPos.y * noiseScale * 5.0, vLocalPos.z * noiseScale * 0.5) + t * 0.6);
+        stretch = stretch * 0.5 + 0.5;
+        noise = stretch;
+        veinIntensity = clamp(stretch * stretch * 0.5, 0.0, 1.0);
+        
+      } else if (tType == 6) {
+        // FLUID (ventricles): very smooth, slow, liquid-like
+        noise = snoise(vLocalPos * noiseScale * 0.3 + t * 0.2) * 0.5 + 0.5;
+        veinIntensity = clamp(noise * noise * 0.2, 0.0, 1.0);
+        
+      } else {
+        // CORTEX (default): broad undulating folds, layered
+        noise = snoise(vLocalPos * noiseScale + t) * 0.5 + 0.5;
+        float veins = abs(snoise(vLocalPos * noiseScale * 1.5 + t * 0.7));
+        veins = clamp(1.0 - veins, 0.0, 1.0);
+        veinIntensity = clamp(veins * veins * veins, 0.0, 1.0);
+      }
       
       // Color gradient: purple at edges -> cyan at center/veins
       // Outer layers are more purple, inner layers more cyan
@@ -169,10 +218,10 @@ const NeuralBrainShaderMaterial = shaderMaterial(
       finalColor += vec3(0.8, 0.9, 1.0) * veinIntensity * veinIntensity * 0.08;
       finalColor = clamp(finalColor, 0.0, 2.0);
       
-      // Opacity: fresnel edges dominant, veins as subtle accent
-      float fillAmount = mix(0.0, 0.05, layerDepth);
-      float fresnelAlpha = fresnel * mix(0.4, 0.6, layerDepth);
-      float veinAlpha = veinIntensity * mix(0.2, 0.15, layerDepth);
+      // Opacity: strong fresnel edges for wireframe look, veins subtle
+      float fillAmount = mix(0.0, 0.04, layerDepth);
+      float fresnelAlpha = fresnel * mix(0.55, 0.65, layerDepth);
+      float veinAlpha = veinIntensity * mix(0.15, 0.12, layerDepth);
       float alpha = fillAmount + fresnelAlpha + veinAlpha + innerGlow;
       alpha *= hologramOpacity;
       alpha = clamp(alpha, 0.0, 1.0);
@@ -197,6 +246,7 @@ declare module "@react-three/fiber" {
       hologramOpacity?: number;
       noiseScale?: number;
       layerDepth?: number;
+      textureType?: number;
     };
   }
 }

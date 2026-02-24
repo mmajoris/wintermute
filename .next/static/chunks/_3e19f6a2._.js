@@ -859,8 +859,9 @@ const NeuralBrainShaderMaterial = (0, __TURBOPACK__imported__module__$5b$project
     hologramBrightness: 0.8,
     hologramOpacity: 1.0,
     noiseScale: 0.8,
-    layerDepth: 0.0
-}, "\n    varying vec3 vNormal;\n    varying vec3 vViewPosition;\n    varying vec2 vUv;\n    varying vec3 vPositionW;\n    varying vec3 vNormalW;\n    varying vec3 vLocalPos;\n    varying vec4 vPos;\n\n    void main() {\n      vUv = uv;\n      vNormal = normalize(normalMatrix * normal);\n      vLocalPos = position;\n      \n      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n      vViewPosition = -mvPosition.xyz;\n      vPositionW = (modelMatrix * vec4(position, 1.0)).xyz;\n      vNormalW = normalize((modelMatrix * vec4(normal, 0.0)).xyz);\n      vPos = projectionMatrix * mvPosition;\n      \n      gl_Position = vPos;\n    }\n  ", "\n    uniform float time;\n    uniform float fresnelAmount;\n    uniform float fresnelOpacity;\n    uniform vec3 outerColor;\n    uniform vec3 innerColor;\n    uniform vec3 accentColor;\n    uniform float hologramBrightness;\n    uniform float hologramOpacity;\n    uniform float noiseScale;\n    uniform float layerDepth;\n    \n    varying vec3 vNormal;\n    varying vec3 vViewPosition;\n    varying vec2 vUv;\n    varying vec3 vPositionW;\n    varying vec3 vNormalW;\n    varying vec3 vLocalPos;\n    varying vec4 vPos;\n    \n    // Simplex-style noise for organic variation\n    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\n    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\n    vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }\n    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }\n\n    float snoise(vec3 v) {\n      const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);\n      const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);\n\n      vec3 i = floor(v + dot(v, C.yyy));\n      vec3 x0 = v - i + dot(i, C.xxx);\n\n      vec3 g = step(x0.yzx, x0.xyz);\n      vec3 l = 1.0 - g;\n      vec3 i1 = min(g.xyz, l.zxy);\n      vec3 i2 = max(g.xyz, l.zxy);\n\n      vec3 x1 = x0 - i1 + C.xxx;\n      vec3 x2 = x0 - i2 + C.yyy;\n      vec3 x3 = x0 - D.yyy;\n\n      i = mod289(i);\n      vec4 p = permute(permute(permute(\n                i.z + vec4(0.0, i1.z, i2.z, 1.0))\n              + i.y + vec4(0.0, i1.y, i2.y, 1.0))\n              + i.x + vec4(0.0, i1.x, i2.x, 1.0));\n\n      float n_ = 0.142857142857;\n      vec3 ns = n_ * D.wyz - D.xzx;\n\n      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);\n\n      vec4 x_ = floor(j * ns.z);\n      vec4 y_ = floor(j - 7.0 * x_);\n\n      vec4 x = x_ * ns.x + ns.yyyy;\n      vec4 y = y_ * ns.x + ns.yyyy;\n      vec4 h = 1.0 - abs(x) - abs(y);\n\n      vec4 b0 = vec4(x.xy, y.xy);\n      vec4 b1 = vec4(x.zw, y.zw);\n\n      vec4 s0 = floor(b0) * 2.0 + 1.0;\n      vec4 s1 = floor(b1) * 2.0 + 1.0;\n      vec4 sh = -step(h, vec4(0.0));\n\n      vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;\n      vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;\n\n      vec3 p0 = vec3(a0.xy, h.x);\n      vec3 p1 = vec3(a0.zw, h.y);\n      vec3 p2 = vec3(a1.xy, h.z);\n      vec3 p3 = vec3(a1.zw, h.w);\n\n      vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));\n      p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;\n\n      vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);\n      m = m * m;\n      return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));\n    }\n\n    void main() {\n      // Fresnel - bright at edges, transparent in center\n      vec3 viewDir = normalize(cameraPosition - vPositionW);\n      float fresnelBase = dot(viewDir, vNormalW);\n      float fresnel = clamp(fresnelAmount - fresnelBase * (1.6 - fresnelOpacity / 2.0), 0.0, fresnelOpacity);\n      \n      // Noise in local space with slow time drift\n      float t = time * 0.15;\n      float noise = snoise(vLocalPos * noiseScale + t) * 0.5 + 0.5;\n      \n      // Single vein/pathway pattern with slower drift\n      float veins = abs(snoise(vLocalPos * noiseScale * 1.5 + t * 0.7));\n      veins = clamp(1.0 - veins, 0.0, 1.0);\n      veins = veins * veins * veins;\n      \n      float veinIntensity = clamp(veins, 0.0, 1.0);\n      \n      // Color gradient: purple at edges -> cyan at center/veins\n      // Outer layers are more purple, inner layers more cyan\n      float colorMix = fresnel * 0.6 + (1.0 - layerDepth) * 0.4;\n      vec3 surfaceColor = mix(innerColor, outerColor, colorMix);\n      \n      // Veins glow brighter cyan/white\n      vec3 veinColor = mix(innerColor, vec3(0.7, 0.85, 1.0), 0.4);\n      \n      // Accent color mixed in via noise for variation\n      vec3 accentMix = accentColor * noise * 0.2 * (1.0 - layerDepth);\n      \n      // Inner glow\n      float innerGlow = (1.0 - fresnel) * noise * 0.2 * (0.3 + layerDepth * 0.7);\n      \n      // Compose final color - noise is a subtle undertone, not dominant\n      vec3 finalColor = surfaceColor * hologramBrightness * (fresnel * 0.8 + innerGlow);\n      finalColor += veinColor * veinIntensity * 0.25 * hologramBrightness;\n      finalColor += accentMix * 0.6;\n      \n      // Subtle vein brightening\n      finalColor += vec3(0.8, 0.9, 1.0) * veinIntensity * veinIntensity * 0.08;\n      finalColor = clamp(finalColor, 0.0, 2.0);\n      \n      // Opacity: fresnel edges dominant, veins as subtle accent\n      float fillAmount = mix(0.0, 0.05, layerDepth);\n      float fresnelAlpha = fresnel * mix(0.4, 0.6, layerDepth);\n      float veinAlpha = veinIntensity * mix(0.2, 0.15, layerDepth);\n      float alpha = fillAmount + fresnelAlpha + veinAlpha + innerGlow;\n      alpha *= hologramOpacity;\n      alpha = clamp(alpha, 0.0, 1.0);\n      \n      gl_FragColor = vec4(finalColor, alpha);\n    }\n  ");
+    layerDepth: 0.0,
+    textureType: 0.0
+}, "\n    varying vec3 vNormal;\n    varying vec3 vViewPosition;\n    varying vec2 vUv;\n    varying vec3 vPositionW;\n    varying vec3 vNormalW;\n    varying vec3 vLocalPos;\n    varying vec4 vPos;\n\n    void main() {\n      vUv = uv;\n      vNormal = normalize(normalMatrix * normal);\n      vLocalPos = position;\n      \n      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n      vViewPosition = -mvPosition.xyz;\n      vPositionW = (modelMatrix * vec4(position, 1.0)).xyz;\n      vNormalW = normalize((modelMatrix * vec4(normal, 0.0)).xyz);\n      vPos = projectionMatrix * mvPosition;\n      \n      gl_Position = vPos;\n    }\n  ", "\n    uniform float time;\n    uniform float fresnelAmount;\n    uniform float fresnelOpacity;\n    uniform vec3 outerColor;\n    uniform vec3 innerColor;\n    uniform vec3 accentColor;\n    uniform float hologramBrightness;\n    uniform float hologramOpacity;\n    uniform float noiseScale;\n    uniform float layerDepth;\n    uniform float textureType;\n    \n    varying vec3 vNormal;\n    varying vec3 vViewPosition;\n    varying vec2 vUv;\n    varying vec3 vPositionW;\n    varying vec3 vNormalW;\n    varying vec3 vLocalPos;\n    varying vec4 vPos;\n    \n    // Simplex-style noise for organic variation\n    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\n    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\n    vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }\n    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }\n\n    float snoise(vec3 v) {\n      const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);\n      const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);\n\n      vec3 i = floor(v + dot(v, C.yyy));\n      vec3 x0 = v - i + dot(i, C.xxx);\n\n      vec3 g = step(x0.yzx, x0.xyz);\n      vec3 l = 1.0 - g;\n      vec3 i1 = min(g.xyz, l.zxy);\n      vec3 i2 = max(g.xyz, l.zxy);\n\n      vec3 x1 = x0 - i1 + C.xxx;\n      vec3 x2 = x0 - i2 + C.yyy;\n      vec3 x3 = x0 - D.yyy;\n\n      i = mod289(i);\n      vec4 p = permute(permute(permute(\n                i.z + vec4(0.0, i1.z, i2.z, 1.0))\n              + i.y + vec4(0.0, i1.y, i2.y, 1.0))\n              + i.x + vec4(0.0, i1.x, i2.x, 1.0));\n\n      float n_ = 0.142857142857;\n      vec3 ns = n_ * D.wyz - D.xzx;\n\n      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);\n\n      vec4 x_ = floor(j * ns.z);\n      vec4 y_ = floor(j - 7.0 * x_);\n\n      vec4 x = x_ * ns.x + ns.yyyy;\n      vec4 y = y_ * ns.x + ns.yyyy;\n      vec4 h = 1.0 - abs(x) - abs(y);\n\n      vec4 b0 = vec4(x.xy, y.xy);\n      vec4 b1 = vec4(x.zw, y.zw);\n\n      vec4 s0 = floor(b0) * 2.0 + 1.0;\n      vec4 s1 = floor(b1) * 2.0 + 1.0;\n      vec4 sh = -step(h, vec4(0.0));\n\n      vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;\n      vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;\n\n      vec3 p0 = vec3(a0.xy, h.x);\n      vec3 p1 = vec3(a0.zw, h.y);\n      vec3 p2 = vec3(a1.xy, h.z);\n      vec3 p3 = vec3(a1.zw, h.w);\n\n      vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));\n      p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;\n\n      vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);\n      m = m * m;\n      return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));\n    }\n\n    void main() {\n      // Fresnel - bright at edges, transparent in center\n      vec3 viewDir = normalize(cameraPosition - vPositionW);\n      float fresnelBase = dot(viewDir, vNormalW);\n      float fresnel = clamp(fresnelAmount - fresnelBase * (1.6 - fresnelOpacity / 2.0), 0.0, fresnelOpacity);\n      \n      float t = time * 0.15;\n      float noise = 0.5;\n      float veinIntensity = 0.0;\n      int tType = int(textureType + 0.5);\n      \n      if (tType == 1) {\n        // CEREBELLUM: tight, regular, parallel ridge folds\n        float ridges = sin(vLocalPos.y * noiseScale * 12.0 + snoise(vLocalPos * noiseScale * 2.0) * 2.0 + t);\n        ridges = clamp(ridges, 0.0, 1.0);\n        ridges = ridges * ridges;\n        noise = snoise(vLocalPos * noiseScale * 2.5 + t * 0.5) * 0.5 + 0.5;\n        veinIntensity = clamp(ridges * 0.7, 0.0, 1.0);\n        \n      } else if (tType == 2) {\n        // BRAINSTEM: vertical fiber bundles, directional streaks\n        float fibers = sin(vLocalPos.y * noiseScale * 8.0 + t * 0.3) * 0.5 + 0.5;\n        float fiberNoise = snoise(vec3(vLocalPos.x * noiseScale * 3.0, vLocalPos.y * noiseScale * 0.5, vLocalPos.z * noiseScale * 3.0) + t * 0.4);\n        fibers *= clamp(fiberNoise + 0.6, 0.0, 1.0);\n        noise = fibers;\n        veinIntensity = clamp(fibers * fibers * 0.6, 0.0, 1.0);\n        \n      } else if (tType == 3) {\n        // LIMBIC: turbulent, clustered, organic nuclei\n        float turb = snoise(vLocalPos * noiseScale * 1.8 + t * 0.8) * 0.5 + 0.5;\n        float cluster = snoise(vLocalPos * noiseScale * 3.0 + 10.0 + t * 0.3) * 0.5 + 0.5;\n        turb = turb * cluster;\n        noise = turb;\n        float veins = clamp(1.0 - abs(snoise(vLocalPos * noiseScale * 2.5 + t * 0.5)), 0.0, 1.0);\n        veinIntensity = clamp(veins * veins * 0.5 + turb * 0.3, 0.0, 1.0);\n        \n      } else if (tType == 4) {\n        // WHITE MATTER (corpus callosum): smooth parallel flowing fibers\n        float flow = snoise(vec3(vLocalPos.x * noiseScale * 0.4, vLocalPos.y * noiseScale * 3.0, vLocalPos.z * noiseScale * 0.4) + t * 0.5);\n        flow = flow * 0.5 + 0.5;\n        noise = flow;\n        float strands = sin(vLocalPos.x * noiseScale * 6.0 + flow * 4.0 + t) * 0.5 + 0.5;\n        veinIntensity = clamp(strands * flow * 0.6, 0.0, 1.0);\n        \n      } else if (tType == 5) {\n        // PERIPHERAL (cranial nerves): elongated linear fibers\n        float stretch = snoise(vec3(vLocalPos.x * noiseScale * 0.5, vLocalPos.y * noiseScale * 5.0, vLocalPos.z * noiseScale * 0.5) + t * 0.6);\n        stretch = stretch * 0.5 + 0.5;\n        noise = stretch;\n        veinIntensity = clamp(stretch * stretch * 0.5, 0.0, 1.0);\n        \n      } else if (tType == 6) {\n        // FLUID (ventricles): very smooth, slow, liquid-like\n        noise = snoise(vLocalPos * noiseScale * 0.3 + t * 0.2) * 0.5 + 0.5;\n        veinIntensity = clamp(noise * noise * 0.2, 0.0, 1.0);\n        \n      } else {\n        // CORTEX (default): broad undulating folds, layered\n        noise = snoise(vLocalPos * noiseScale + t) * 0.5 + 0.5;\n        float veins = abs(snoise(vLocalPos * noiseScale * 1.5 + t * 0.7));\n        veins = clamp(1.0 - veins, 0.0, 1.0);\n        veinIntensity = clamp(veins * veins * veins, 0.0, 1.0);\n      }\n      \n      // Color gradient: purple at edges -> cyan at center/veins\n      // Outer layers are more purple, inner layers more cyan\n      float colorMix = fresnel * 0.6 + (1.0 - layerDepth) * 0.4;\n      vec3 surfaceColor = mix(innerColor, outerColor, colorMix);\n      \n      // Veins glow brighter cyan/white\n      vec3 veinColor = mix(innerColor, vec3(0.7, 0.85, 1.0), 0.4);\n      \n      // Accent color mixed in via noise for variation\n      vec3 accentMix = accentColor * noise * 0.2 * (1.0 - layerDepth);\n      \n      // Inner glow\n      float innerGlow = (1.0 - fresnel) * noise * 0.2 * (0.3 + layerDepth * 0.7);\n      \n      // Compose final color - noise is a subtle undertone, not dominant\n      vec3 finalColor = surfaceColor * hologramBrightness * (fresnel * 0.8 + innerGlow);\n      finalColor += veinColor * veinIntensity * 0.25 * hologramBrightness;\n      finalColor += accentMix * 0.6;\n      \n      // Subtle vein brightening\n      finalColor += vec3(0.8, 0.9, 1.0) * veinIntensity * veinIntensity * 0.08;\n      finalColor = clamp(finalColor, 0.0, 2.0);\n      \n      // Opacity: strong fresnel edges for wireframe look, veins subtle\n      float fillAmount = mix(0.0, 0.04, layerDepth);\n      float fresnelAlpha = fresnel * mix(0.55, 0.65, layerDepth);\n      float veinAlpha = veinIntensity * mix(0.15, 0.12, layerDepth);\n      float alpha = fillAmount + fresnelAlpha + veinAlpha + innerGlow;\n      alpha *= hologramOpacity;\n      alpha = clamp(alpha, 0.0, 1.0);\n      \n      gl_FragColor = vec4(finalColor, alpha);\n    }\n  ");
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$5a94e5eb$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__e__as__extend$3e$__["extend"])({
     NeuralBrainShaderMaterial
 });
@@ -894,9 +895,11 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$live$2d$store$2e$ts__
 var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$brain$2d$model$2d$loader$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/brain-model-loader.ts [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$collection$2d$mapping$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/collection-mapping.ts [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$shaders$2f$NeuralBrainMaterial$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/live/shaders/NeuralBrainMaterial.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$LiveBrainMonitor$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/live/LiveBrainMonitor.tsx [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature(), _s1 = __turbopack_context__.k.signature(), _s2 = __turbopack_context__.k.signature(), _s3 = __turbopack_context__.k.signature();
 "use client";
+;
 ;
 ;
 ;
@@ -950,7 +953,7 @@ function NeuralBrainViewProvider(param) {
         children: children
     }, void 0, false, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 69,
+        lineNumber: 70,
         columnNumber: 5
     }, this);
 }
@@ -981,6 +984,23 @@ function NeuralBrainRegionMesh(param) {
     const matRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
     const hoveredRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(false);
     const [, forceUpdate] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(0);
+    // Full wireframe - outer layers more transparent
+    const isOuter = OUTER_IDS.has(entry.id);
+    const wireframeMaterial = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
+        "NeuralBrainRegionMesh.useMemo[wireframeMaterial]": ()=>{
+            const mat = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MeshBasicMaterial"]({
+                color: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x77bbff),
+                wireframe: true,
+                transparent: true,
+                opacity: isOuter ? 0.05 : 0.08,
+                depthWrite: false
+            });
+            mat.blending = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AdditiveBlending"];
+            return mat;
+        }
+    }["NeuralBrainRegionMesh.useMemo[wireframeMaterial]"], [
+        isOuter
+    ]);
     const { selectedRegionId, selectRegion, hoverRegion, regionActivity } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$live$2d$store$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useLiveStore"])();
     const isSelected = selectedRegionId === entry.id;
     const activity = regionActivity.get(entry.id);
@@ -988,10 +1008,98 @@ function NeuralBrainRegionMesh(param) {
     const activityIntensity = (_activity_intensity = activity === null || activity === void 0 ? void 0 : activity.intensity) !== null && _activity_intensity !== void 0 ? _activity_intensity : 0;
     const collections = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$collection$2d$mapping$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCollectionsForRegion"])(entry.id);
     const layerDepth = getLayerDepth(entry.id);
-    // Outer = more transparent, wider fresnel
-    const baseFresnelAmount = layerDepth === 0 ? 0.4 : layerDepth === 0.5 ? 0.45 : 0.5;
-    const baseBrightness = layerDepth === 0 ? 0.3 : layerDepth === 0.5 ? 0.4 : 0.5;
-    const baseOpacity = layerDepth === 0 ? 0.4 : layerDepth === 0.5 ? 0.5 : 0.55;
+    // Per-category: color, noise scale, and biologically-inspired texture type
+    // 0=cortex, 1=cerebellum, 2=brainstem, 3=limbic, 4=fiber, 5=nerve, 6=fluid
+    const regionStyle = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
+        "NeuralBrainRegionMesh.useMemo[regionStyle]": ()=>{
+            const id = entry.id;
+            const cat = entry.category;
+            // Special cases by ID
+            if (id === "corpus-callosum") {
+                return {
+                    outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x4466bb),
+                    inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x55ccff),
+                    accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x6677cc),
+                    noiseScale: 0.8,
+                    textureType: 4
+                };
+            }
+            if (id === "ventricles") {
+                return {
+                    outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x3355bb),
+                    inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x33bbff),
+                    accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x5577cc),
+                    noiseScale: 0.5,
+                    textureType: 6
+                };
+            }
+            switch(cat){
+                case "cerebrum":
+                    return {
+                        outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x5544aa),
+                        inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x22bbff),
+                        accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x7744bb),
+                        noiseScale: 0.7,
+                        textureType: 0
+                    };
+                case "cerebellum":
+                    return {
+                        outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x4455bb),
+                        inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x22ccff),
+                        accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x6655cc),
+                        noiseScale: 0.6,
+                        textureType: 1
+                    };
+                case "brainstem":
+                    return {
+                        outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x6644aa),
+                        inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x44aaee),
+                        accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x9944aa),
+                        noiseScale: 0.8,
+                        textureType: 2
+                    };
+                case "limbic":
+                    return {
+                        outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x5555bb),
+                        inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x33ccdd),
+                        accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x8855aa),
+                        noiseScale: 0.9,
+                        textureType: 3
+                    };
+                case "endocrine":
+                    return {
+                        outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x4466aa),
+                        inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x44ddcc),
+                        accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x6688bb),
+                        noiseScale: 1.0,
+                        textureType: 3
+                    };
+                case "peripheral":
+                    return {
+                        outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x3366aa),
+                        inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x22ddbb),
+                        accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x4488aa),
+                        noiseScale: 0.8,
+                        textureType: 5
+                    };
+                default:
+                    return {
+                        outer: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x5544aa),
+                        inner: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x22bbff),
+                        accent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x7744bb),
+                        noiseScale: 0.8,
+                        textureType: 0
+                    };
+            }
+        }
+    }["NeuralBrainRegionMesh.useMemo[regionStyle]"], [
+        entry.id,
+        entry.category
+    ]);
+    // Outer much more transparent, inner more solid
+    const baseFresnelAmount = layerDepth === 0 ? 0.55 : layerDepth === 0.5 ? 0.5 : 0.45;
+    const baseBrightness = layerDepth === 0 ? 0.2 : layerDepth === 0.5 ? 0.4 : 0.5;
+    const baseOpacity = layerDepth === 0 ? 0.25 : layerDepth === 0.5 ? 0.5 : 0.55;
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$5a94e5eb$2e$esm$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__D__as__useFrame$3e$__["useFrame"])({
         "NeuralBrainRegionMesh.useFrame": (param)=>{
             let { clock } = param;
@@ -1019,14 +1127,23 @@ function NeuralBrainRegionMesh(param) {
             u.hologramBrightness.value = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MathUtils"].lerp(u.hologramBrightness.value, targetBrightness, 0.1);
             u.hologramOpacity.value = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MathUtils"].lerp(u.hologramOpacity.value, targetOpacity, 0.1);
             u.fresnelAmount.value = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MathUtils"].lerp(u.fresnelAmount.value, targetFresnel, 0.1);
+            // Force per-region values every frame
+            u.noiseScale.value = regionStyle.noiseScale;
+            u.textureType.value = regionStyle.textureType;
+            u.outerColor.value.copy(regionStyle.outer);
+            u.innerColor.value.copy(regionStyle.inner);
+            u.accentColor.value.copy(regionStyle.accent);
+            u.layerDepth.value = layerDepth;
         }
     }["NeuralBrainRegionMesh.useFrame"]);
     if (!geometry) return null;
     const showLabel = hoveredRef.current || isSelected || activityIntensity > 0.3;
+    const { showShader, showWireframe } = __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$LiveBrainMonitor$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["renderOptionsRef"];
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("group", {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("mesh", {
                 geometry: geometry,
+                visible: false,
                 onClick: (e)=>{
                     e.stopPropagation();
                     selectRegion(isSelected ? null : entry.id);
@@ -1044,27 +1161,52 @@ function NeuralBrainRegionMesh(param) {
                     document.body.style.cursor = "";
                     forceUpdate((n)=>n + 1);
                 },
-                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("neuralBrainShaderMaterial", {
-                    ref: matRef,
-                    fresnelAmount: baseFresnelAmount,
-                    fresnelOpacity: 1.0,
-                    outerColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x8844cc),
-                    innerColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0x22aaff),
-                    accentColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Color"](0xcc44aa),
-                    hologramBrightness: baseBrightness,
-                    hologramOpacity: baseOpacity,
-                    noiseScale: 0.8,
-                    layerDepth: layerDepth,
-                    ...__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$shaders$2f$NeuralBrainMaterial$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["NEURAL_MATERIAL_DEFAULTS"]
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("meshBasicMaterial", {
+                    transparent: true,
+                    opacity: 0,
+                    side: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DoubleSide"]
                 }, void 0, false, {
                     fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                    lineNumber: 171,
+                    lineNumber: 229,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 150,
+                lineNumber: 208,
                 columnNumber: 7
+            }, this),
+            showShader && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("mesh", {
+                geometry: geometry,
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("neuralBrainShaderMaterial", {
+                    ref: matRef,
+                    fresnelAmount: baseFresnelAmount,
+                    fresnelOpacity: 1.0,
+                    outerColor: regionStyle.outer,
+                    innerColor: regionStyle.inner,
+                    accentColor: regionStyle.accent,
+                    hologramBrightness: baseBrightness,
+                    hologramOpacity: baseOpacity,
+                    noiseScale: regionStyle.noiseScale,
+                    textureType: regionStyle.textureType,
+                    layerDepth: layerDepth,
+                    ...__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$shaders$2f$NeuralBrainMaterial$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["NEURAL_MATERIAL_DEFAULTS"]
+                }, void 0, false, {
+                    fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
+                    lineNumber: 236,
+                    columnNumber: 11
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
+                lineNumber: 234,
+                columnNumber: 9
+            }, this),
+            showWireframe && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("mesh", {
+                geometry: geometry,
+                material: wireframeMaterial
+            }, void 0, false, {
+                fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
+                lineNumber: 255,
+                columnNumber: 9
             }, this),
             showLabel && geometry && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(NeuralRegionLabel, {
                 entry: entry,
@@ -1074,17 +1216,17 @@ function NeuralBrainRegionMesh(param) {
                 isSelected: isSelected
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 187,
+                lineNumber: 259,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 149,
+        lineNumber: 206,
         columnNumber: 5
     }, this);
 }
-_s1(NeuralBrainRegionMesh, "uC0e7LGHd8Vr0cElHSHuv3TtL04=", false, function() {
+_s1(NeuralBrainRegionMesh, "GM1KRj+zIY71KVnca+rphEHmiCw=", false, function() {
     return [
         useBrainGeometry,
         __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$live$2d$store$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useLiveStore"],
@@ -1124,7 +1266,7 @@ function NeuralRegionLabel(param) {
                 children: entry.name
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 223,
+                lineNumber: 295,
                 columnNumber: 7
             }, this),
             activityIntensity > 0.1 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$drei$2f$web$2f$Html$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Html"], {
@@ -1142,7 +1284,7 @@ function NeuralRegionLabel(param) {
                             children: collections.length > 0 ? "".concat(collections.length, " collection").concat(collections.length > 1 ? "s" : "") : "Active"
                         }, void 0, false, {
                             fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                            lineNumber: 236,
+                            lineNumber: 308,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1153,24 +1295,24 @@ function NeuralRegionLabel(param) {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                            lineNumber: 241,
+                            lineNumber: 313,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                    lineNumber: 235,
+                    lineNumber: 307,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 234,
+                lineNumber: 306,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 222,
+        lineNumber: 294,
         columnNumber: 5
     }, this);
 }
@@ -1195,7 +1337,7 @@ function LoadingProgress(param) {
                         className: "w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin"
                     }, void 0, false, {
                         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                        lineNumber: 263,
+                        lineNumber: 335,
                         columnNumber: 11
                     }, this),
                     "Loading neural map... ",
@@ -1205,17 +1347,17 @@ function LoadingProgress(param) {
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 262,
+                lineNumber: 334,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-            lineNumber: 261,
+            lineNumber: 333,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 260,
+        lineNumber: 332,
         columnNumber: 5
     }, this);
 }
@@ -1248,20 +1390,20 @@ function NeuralBrain3DViewer() {
                 total: visibleEntries.length
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                lineNumber: 287,
+                lineNumber: 359,
                 columnNumber: 7
             }, this),
             visibleEntries.map((entry)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(NeuralBrainRegionMesh, {
                     entry: entry
                 }, entry.id, false, {
                     fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-                    lineNumber: 289,
+                    lineNumber: 361,
                     columnNumber: 9
                 }, this))
         ]
     }, void 0, true, {
         fileName: "[project]/components/live/NeuralBrain3DViewer.tsx",
-        lineNumber: 286,
+        lineNumber: 358,
         columnNumber: 5
     }, this);
 }
@@ -1296,11 +1438,11 @@ function NeuralEffects() {
         multisampling: 0,
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$postprocessing$2f$dist$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Bloom"], {
-                intensity: 1.1,
-                luminanceThreshold: 0.12,
-                luminanceSmoothing: 0.95,
+                intensity: 1.3,
+                luminanceThreshold: 0.1,
+                luminanceSmoothing: 0.9,
                 mipmapBlur: true,
-                radius: 0.75
+                radius: 0.85
             }, void 0, false, {
                 fileName: "[project]/components/live/NeuralEffects.tsx",
                 lineNumber: 9,
@@ -3027,7 +3169,9 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
 
 __turbopack_context__.s([
     "default",
-    ()=>LiveBrainMonitor
+    ()=>LiveBrainMonitor,
+    "renderOptionsRef",
+    ()=>renderOptionsRef
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
@@ -3065,6 +3209,10 @@ var _s = __turbopack_context__.k.signature(), _s1 = __turbopack_context__.k.sign
 const spinSpeedRef = {
     current: 0.08
 };
+const renderOptionsRef = {
+    showShader: true,
+    showWireframe: false
+};
 function RotatingBrain() {
     _s();
     const groupRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
@@ -3079,12 +3227,12 @@ function RotatingBrain() {
         ref: groupRef,
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$NeuralBrain3DViewer$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
             fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-            lineNumber: 32,
+            lineNumber: 33,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-        lineNumber: 31,
+        lineNumber: 32,
         columnNumber: 5
     }, this);
 }
@@ -3135,6 +3283,8 @@ function LayerControls(param) {
     let { activeLayers, onToggle, onShowAll } = param;
     _s1();
     const [spinSpeed, setSpinSpeed] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(0.08);
+    const [showShader, setShowShader] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(true);
+    const [showWireframe, setShowWireframe] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
         initial: {
             opacity: 0,
@@ -3157,7 +3307,7 @@ function LayerControls(param) {
                     children: "Layers"
                 }, void 0, false, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 68,
+                    lineNumber: 71,
                     columnNumber: 9
                 }, this),
                 LAYER_TOGGLE_CONFIG.map((param)=>{
@@ -3179,14 +3329,14 @@ function LayerControls(param) {
                                 }
                             }, void 0, false, {
                                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                                lineNumber: 83,
+                                lineNumber: 86,
                                 columnNumber: 15
                             }, this),
                             label
                         ]
                     }, key, true, {
                         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                        lineNumber: 74,
+                        lineNumber: 77,
                         columnNumber: 13
                     }, this);
                 }),
@@ -3194,7 +3344,7 @@ function LayerControls(param) {
                     className: "h-px bg-white/4 my-1"
                 }, void 0, false, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 94,
+                    lineNumber: 97,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -3203,14 +3353,14 @@ function LayerControls(param) {
                     children: "Show All"
                 }, void 0, false, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 95,
+                    lineNumber: 98,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     className: "h-px bg-white/4 my-1"
                 }, void 0, false, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 101,
+                    lineNumber: 104,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3221,7 +3371,7 @@ function LayerControls(param) {
                             children: "Spin"
                         }, void 0, false, {
                             fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                            lineNumber: 103,
+                            lineNumber: 106,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -3238,28 +3388,103 @@ function LayerControls(param) {
                             className: "w-full h-1 appearance-none bg-neutral-700 rounded-full cursor-pointer accent-cyan-500"
                         }, void 0, false, {
                             fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                            lineNumber: 106,
+                            lineNumber: 109,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 102,
+                    lineNumber: 105,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    className: "h-px bg-white/4 my-1"
+                }, void 0, false, {
+                    fileName: "[project]/components/live/LiveBrainMonitor.tsx",
+                    lineNumber: 123,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                    className: "text-[10px] text-neutral-500 uppercase tracking-widest font-semibold px-1 mb-0.5",
+                    children: "Render"
+                }, void 0, false, {
+                    fileName: "[project]/components/live/LiveBrainMonitor.tsx",
+                    lineNumber: 124,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                    onClick: ()=>{
+                        const next = !showShader;
+                        setShowShader(next);
+                        renderOptionsRef.showShader = next;
+                    },
+                    className: "flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
+                    style: {
+                        background: showShader ? "#6366f115" : "transparent",
+                        color: showShader ? "#818cf8" : "#525252"
+                    },
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                            className: "w-2 h-2 rounded-full transition-all duration-200",
+                            style: {
+                                backgroundColor: showShader ? "#818cf8" : "#333",
+                                boxShadow: showShader ? "0 0 6px #818cf860" : "none"
+                            }
+                        }, void 0, false, {
+                            fileName: "[project]/components/live/LiveBrainMonitor.tsx",
+                            lineNumber: 139,
+                            columnNumber: 11
+                        }, this),
+                        "Shader"
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/components/live/LiveBrainMonitor.tsx",
+                    lineNumber: 127,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                    onClick: ()=>{
+                        const next = !showWireframe;
+                        setShowWireframe(next);
+                        renderOptionsRef.showWireframe = next;
+                    },
+                    className: "flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
+                    style: {
+                        background: showWireframe ? "#22d3ee15" : "transparent",
+                        color: showWireframe ? "#22d3ee" : "#525252"
+                    },
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                            className: "w-2 h-2 rounded-full transition-all duration-200",
+                            style: {
+                                backgroundColor: showWireframe ? "#22d3ee" : "#333",
+                                boxShadow: showWireframe ? "0 0 6px #22d3ee60" : "none"
+                            }
+                        }, void 0, false, {
+                            fileName: "[project]/components/live/LiveBrainMonitor.tsx",
+                            lineNumber: 160,
+                            columnNumber: 11
+                        }, this),
+                        "Wireframe"
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/components/live/LiveBrainMonitor.tsx",
+                    lineNumber: 148,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-            lineNumber: 67,
+            lineNumber: 70,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-        lineNumber: 61,
+        lineNumber: 64,
         columnNumber: 5
     }, this);
 }
-_s1(LayerControls, "1cNwm2KC5/lta1MG1ZRsskg7GG0=");
+_s1(LayerControls, "+mzVrRYvPSvN0tQqS4c1PGfw4zg=");
 _c1 = LayerControls;
 function ConnectionHint() {
     _s2();
@@ -3284,7 +3509,7 @@ function ConnectionHint() {
                     children: connectionError ? "Connection error: ".concat(connectionError) : "Connecting to brain event stream..."
                 }, void 0, false, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 138,
+                    lineNumber: 187,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3292,18 +3517,18 @@ function ConnectionHint() {
                     children: "Waiting for Molly to come online"
                 }, void 0, false, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 143,
+                    lineNumber: 192,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-            lineNumber: 137,
+            lineNumber: 186,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-        lineNumber: 131,
+        lineNumber: 180,
         columnNumber: 5
     }, this);
 }
@@ -3400,7 +3625,7 @@ function LiveBrainMonitor() {
                         ]
                     }, void 0, false, {
                         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                        lineNumber: 207,
+                        lineNumber: 256,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("fog", {
@@ -3412,14 +3637,14 @@ function LiveBrainMonitor() {
                         ]
                     }, void 0, false, {
                         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                        lineNumber: 208,
+                        lineNumber: 257,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ambientLight", {
                         intensity: 0.08
                     }, void 0, false, {
                         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                        lineNumber: 210,
+                        lineNumber: 259,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Suspense"], {
@@ -3429,12 +3654,12 @@ function LiveBrainMonitor() {
                                 visibleIds: visibleIds,
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(RotatingBrain, {}, void 0, false, {
                                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                                    lineNumber: 214,
+                                    lineNumber: 263,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                                lineNumber: 213,
+                                lineNumber: 262,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Stars$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Stars"], {
@@ -3447,18 +3672,18 @@ function LiveBrainMonitor() {
                                 speed: 0.1
                             }, void 0, false, {
                                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                                lineNumber: 216,
+                                lineNumber: 265,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$NeuralEffects$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                                lineNumber: 225,
+                                lineNumber: 274,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                        lineNumber: 212,
+                        lineNumber: 261,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$OrbitControls$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["OrbitControls"], {
@@ -3476,13 +3701,13 @@ function LiveBrainMonitor() {
                         rotateSpeed: 0.5
                     }, void 0, false, {
                         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                        lineNumber: 228,
+                        lineNumber: 277,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                lineNumber: 200,
+                lineNumber: 249,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$LiveTopBar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -3490,7 +3715,7 @@ function LiveBrainMonitor() {
                 onTogglePanel: ()=>setPanelOpen((v)=>!v)
             }, void 0, false, {
                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                lineNumber: 240,
+                lineNumber: 289,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LayerControls, {
@@ -3499,40 +3724,40 @@ function LiveBrainMonitor() {
                 onShowAll: showAll
             }, void 0, false, {
                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                lineNumber: 241,
+                lineNumber: 290,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$components$2f$AnimatePresence$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AnimatePresence"], {
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(ConnectionHint, {}, void 0, false, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 248,
+                    lineNumber: 297,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                lineNumber: 247,
+                lineNumber: 296,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$components$2f$AnimatePresence$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AnimatePresence"], {
                 children: panelOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$LiveProcessPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                     fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                    lineNumber: 252,
+                    lineNumber: 301,
                     columnNumber: 23
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                lineNumber: 251,
+                lineNumber: 300,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$live$2f$LiveMetricsBar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                 fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-                lineNumber: 255,
+                lineNumber: 304,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/live/LiveBrainMonitor.tsx",
-        lineNumber: 199,
+        lineNumber: 248,
         columnNumber: 5
     }, this);
 }

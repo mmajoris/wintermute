@@ -17,6 +17,7 @@ import LiveMetricsBar from "./LiveMetricsBar";
 import { useEventStream } from "./useEventStream";
 
 const spinSpeedRef = { current: 0.08 };
+export const renderOptionsRef = { showShader: true, showWireframe: false };
 
 function RotatingBrain() {
   const groupRef = useRef<THREE.Group>(null);
@@ -56,6 +57,8 @@ function LayerControls({
   onShowAll: () => void;
 }) {
   const [spinSpeed, setSpinSpeed] = useState(0.08);
+  const [showShader, setShowShader] = useState(true);
+  const [showWireframe, setShowWireframe] = useState(false);
 
   return (
     <motion.div
@@ -117,6 +120,52 @@ function LayerControls({
             className="w-full h-1 appearance-none bg-neutral-700 rounded-full cursor-pointer accent-cyan-500"
           />
         </div>
+        <div className="h-px bg-white/4 my-1" />
+        <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-semibold px-1 mb-0.5">
+          Render
+        </span>
+        <button
+          onClick={() => {
+            const next = !showShader;
+            setShowShader(next);
+            renderOptionsRef.showShader = next;
+          }}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+          style={{
+            background: showShader ? "#6366f115" : "transparent",
+            color: showShader ? "#818cf8" : "#525252",
+          }}
+        >
+          <span
+            className="w-2 h-2 rounded-full transition-all duration-200"
+            style={{
+              backgroundColor: showShader ? "#818cf8" : "#333",
+              boxShadow: showShader ? "0 0 6px #818cf860" : "none",
+            }}
+          />
+          Shader
+        </button>
+        <button
+          onClick={() => {
+            const next = !showWireframe;
+            setShowWireframe(next);
+            renderOptionsRef.showWireframe = next;
+          }}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+          style={{
+            background: showWireframe ? "#22d3ee15" : "transparent",
+            color: showWireframe ? "#22d3ee" : "#525252",
+          }}
+        >
+          <span
+            className="w-2 h-2 rounded-full transition-all duration-200"
+            style={{
+              backgroundColor: showWireframe ? "#22d3ee" : "#333",
+              boxShadow: showWireframe ? "0 0 6px #22d3ee60" : "none",
+            }}
+          />
+          Wireframe
+        </button>
       </div>
     </motion.div>
   );
