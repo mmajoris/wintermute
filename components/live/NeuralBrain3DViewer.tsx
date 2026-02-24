@@ -228,7 +228,9 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
       targetFresnel = Math.min(targetFresnel + 0.15, 0.95);
     }
     if (activityIntensity > 0) {
-      targetBrightness += activityIntensity * 0.4;
+      targetBrightness += activityIntensity * 1.2;
+      targetOpacity = Math.min(targetOpacity + activityIntensity * 0.4, 1.0);
+      targetFresnel = Math.min(targetFresnel + activityIntensity * 0.2, 0.95);
     }
 
     const u = matRef.current.uniforms;
