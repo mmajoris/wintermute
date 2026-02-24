@@ -20,7 +20,7 @@ import { useEventStream } from "./useEventStream";
 const spinSpeedRef = { current: 0.08 };
 export const renderOptionsRef = { showShader: true, showWireframe: false };
 
-function RotatingBrain() {
+function RotatingBrain({ children }: { children?: React.ReactNode }) {
   const groupRef = useRef<THREE.Group>(null);
   
   useFrame((_, delta) => {
@@ -32,6 +32,7 @@ function RotatingBrain() {
   return (
     <group ref={groupRef}>
       <NeuralBrain3DViewer />
+      {children}
     </group>
   );
 }
@@ -261,8 +262,9 @@ export default function LiveBrainMonitor() {
 
         <Suspense fallback={null}>
           <NeuralBrainViewProvider visibleIds={visibleIds}>
-            <RotatingBrain />
-            <NeuralPathways />
+            <RotatingBrain>
+              <NeuralPathways />
+            </RotatingBrain>
           </NeuralBrainViewProvider>
           <Stars
             radius={120}

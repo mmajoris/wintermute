@@ -249,7 +249,7 @@ function NeuralBrainRegionMesh({ entry }: { entry: BrainModelEntry }) {
 
   if (!geometry) return null;
 
-  const showLabel = hoveredRef.current || isSelected || activityIntensity > 0.3;
+  const showLabel = false;
 
   const { showShader, showWireframe } = renderOptionsRef;
 

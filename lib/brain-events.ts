@@ -124,10 +124,13 @@ export interface ErrorCorrectionEvent {
 export interface ThalamicGateEvent {
   type: "thalamic_gate";
   timestamp: string;
-  signal_type: string;
-  signal_source: string;
-  passed: boolean;
+  signal_type?: string;
+  signal_source?: string;
+  gate_open?: boolean;
+  passed?: boolean;
+  signal_strength?: number;
   content?: string;
+  filtered_reason?: string;
 }
 
 export interface HippocampalCascadeEvent {

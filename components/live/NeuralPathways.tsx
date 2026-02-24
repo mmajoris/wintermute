@@ -57,12 +57,12 @@ function PathwayArc({ line, intensity }: { line: PathwayLine; intensity: number 
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
 
   const tubeGeo = useMemo(() => {
-    return new THREE.TubeGeometry(line.curve, 24, 0.04, 4, false);
+    return new THREE.TubeGeometry(line.curve, 32, 0.12, 6, false);
   }, [line.curve]);
 
   useFrame(() => {
     if (!matRef.current) return;
-    matRef.current.opacity = intensity * 0.6;
+    matRef.current.opacity = intensity * 0.9;
   });
 
   if (intensity < 0.01) return null;
@@ -73,7 +73,7 @@ function PathwayArc({ line, intensity }: { line: PathwayLine; intensity: number 
         ref={matRef}
         color={line.color}
         transparent
-        opacity={intensity * 0.6}
+        opacity={intensity * 0.9}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
       />

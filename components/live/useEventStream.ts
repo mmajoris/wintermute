@@ -10,7 +10,7 @@ interface StreamMessage {
 }
 
 export function useEventStream() {
-  const { setConnected, processEvent, processHistory, setEventsPerSecond } =
+  const { setConnected, processEvent, processHistory, setEventsPerSecond, startBaselineActivity, stopBaselineActivity } =
     useLiveStore();
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -33,6 +33,7 @@ export function useEventStream() {
       eventSource.onopen = () => {
         if (!mounted) return;
         setConnected(true);
+        startBaselineActivity();
         console.log("[live] Connected to event stream");
       };
 
@@ -56,6 +57,7 @@ export function useEventStream() {
       eventSource.onerror = () => {
         if (!mounted) return;
         setConnected(false, "Connection lost");
+        stopBaselineActivity();
         eventSource.close();
 
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -88,6 +90,7 @@ export function useEventStream() {
         clearTimeout(reconnectTimeoutRef.current);
       }
       clearInterval(rateInterval);
+      stopBaselineActivity();
     };
-  }, [setConnected, processEvent, processHistory, setEventsPerSecond]);
+  }, [setConnected, processEvent, processHistory, setEventsPerSecond, startBaselineActivity, stopBaselineActivity]);
 }

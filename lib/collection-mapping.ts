@@ -134,11 +134,16 @@ export function getCollectionsForRegion(region: string): string[] {
   return REGION_TO_COLLECTIONS[region] ?? [];
 }
 
-// Neurotransmitter pathway definitions (biologically accurate)
+// Neurotransmitter pathway definitions
+// Sources use specific nuclei, not generic region names:
+//   Serotonin: raphe nuclei (pons/medulla), NOT generic "pons"
+//   Norepinephrine: locus coeruleus (dorsal pons), NOT generic "pons"
+//   Acetylcholine: nucleus basalis / basal forebrain (cortical projections)
+//   Dopamine: substantia nigra (nigrostriatal) + VTA (mesolimbic/mesocortical)
 export interface NeurotransmitterPathway {
   source: string;
   targets: string[];
-  color: string; // hex color for visualization
+  color: string;
 }
 
 export const NEUROTRANSMITTER_PATHWAYS: Record<string, NeurotransmitterPathway> = {
@@ -148,17 +153,17 @@ export const NEUROTRANSMITTER_PATHWAYS: Record<string, NeurotransmitterPathway> 
     color: "#ff8833",
   },
   serotonin: {
-    source: "pons",
+    source: "raphe-nuclei",
     targets: ["amygdala", "hippocampus", "left-hemisphere", "right-hemisphere", "hypothalamus"],
     color: "#33ddaa",
   },
   norepinephrine: {
-    source: "pons",
+    source: "locus-coeruleus",
     targets: ["thalamus", "amygdala", "hippocampus", "left-hemisphere", "cerebellum"],
     color: "#ff5544",
   },
   acetylcholine: {
-    source: "pons",
+    source: "basal-forebrain",
     targets: ["hippocampus", "left-hemisphere", "right-hemisphere", "thalamus"],
     color: "#ffcc33",
   },
@@ -174,18 +179,132 @@ export const NEUROTRANSMITTER_PATHWAYS: Record<string, NeurotransmitterPathway> 
   },
 };
 
-// Which neurotransmitter pathway fires for which event type
-export function getPathwayForEvent(eventType: string): string | null {
+export interface PathwayActivationSpec {
+  pathway: string;
+  intensity: number;
+}
+
+// Multi-pathway firing per event — biological processes always involve
+// multiple neurotransmitter systems simultaneously
+export function getPathwaysForEvent(
+  eventType: string,
+  eventData?: Record<string, unknown>
+): PathwayActivationSpec[] {
   switch (eventType) {
-    case "reward_signal": return "dopamine";
-    case "emotional_state": return "serotonin";
-    case "thought_loop_tick": return "glutamate";
-    case "memory_event": return "acetylcholine";
-    case "thalamic_gate": return "glutamate";
-    case "hippocampal_cascade": return "acetylcholine";
-    case "error_correction": return "norepinephrine";
-    default: return null;
+    case "reward_signal":
+      return [
+        { pathway: "dopamine", intensity: 1.0 },
+        { pathway: "glutamate", intensity: 0.5 },
+      ];
+    case "emotional_state":
+      return [
+        { pathway: "serotonin", intensity: 0.8 },
+        { pathway: "norepinephrine", intensity: 0.6 },
+        { pathway: "dopamine", intensity: 0.4 },
+      ];
+    case "thought_loop_tick":
+      if (eventData && (eventData as { impulse?: boolean }).impulse) {
+        return [
+          { pathway: "glutamate", intensity: 0.8 },
+          { pathway: "norepinephrine", intensity: 0.6 },
+        ];
+      }
+      // Idle thalamocortical oscillation
+      return [
+        { pathway: "glutamate", intensity: 0.2 },
+        { pathway: "gaba", intensity: 0.3 },
+      ];
+    case "memory_event": {
+      const op = eventData && (eventData as { operation?: string }).operation;
+      if (op === "retrieve") {
+        return [
+          { pathway: "acetylcholine", intensity: 0.8 },
+          { pathway: "glutamate", intensity: 0.6 },
+        ];
+      }
+      if (op === "write") {
+        return [
+          { pathway: "acetylcholine", intensity: 0.7 },
+          { pathway: "glutamate", intensity: 0.5 },
+        ];
+      }
+      if (op === "consolidate") {
+        // Acetylcholine is SUPPRESSED during consolidation (NREM-like)
+        return [
+          { pathway: "acetylcholine", intensity: 0.3 },
+          { pathway: "glutamate", intensity: 0.6 },
+        ];
+      }
+      if (op === "decay") {
+        return [{ pathway: "gaba", intensity: 0.5 }];
+      }
+      return [{ pathway: "acetylcholine", intensity: 0.5 }];
+    }
+    case "thalamic_gate": {
+      const open = eventData && (eventData as { gate_open?: boolean }).gate_open;
+      if (open) {
+        return [
+          { pathway: "glutamate", intensity: 0.8 },
+          { pathway: "norepinephrine", intensity: 0.5 },
+        ];
+      }
+      // Gate closed = thalamic reticular nucleus inhibition
+      return [{ pathway: "gaba", intensity: 0.6 }];
+    }
+    case "hippocampal_cascade":
+      return [
+        { pathway: "acetylcholine", intensity: 0.9 },
+        { pathway: "glutamate", intensity: 0.7 },
+      ];
+    case "error_correction":
+      // Purkinje cells are GABAergic, climbing fibers are glutamatergic
+      return [
+        { pathway: "gaba", intensity: 0.7 },
+        { pathway: "glutamate", intensity: 0.5 },
+      ];
+    case "system_vitals":
+      // Autonomic brainstem rhythm: locus coeruleus + raphe tonic firing
+      return [
+        { pathway: "norepinephrine", intensity: 0.3 },
+        { pathway: "serotonin", intensity: 0.2 },
+      ];
+    case "soul_cycle":
+      // DMN is glutamatergic with cholinergic attentional modulation
+      return [
+        { pathway: "glutamate", intensity: 0.6 },
+        { pathway: "acetylcholine", intensity: 0.4 },
+      ];
+    case "action_dispatch":
+      // Executive output with motivational dopamine signal
+      return [
+        { pathway: "glutamate", intensity: 0.7 },
+        { pathway: "dopamine", intensity: 0.4 },
+      ];
+    case "llm_call":
+      // Cortical processing burst
+      return [{ pathway: "glutamate", intensity: 0.8 }];
+    case "collection_activity": {
+      const colOp = eventData && (eventData as { operation?: string }).operation;
+      if (colOp === "write") {
+        return [
+          { pathway: "glutamate", intensity: 0.4 },
+          { pathway: "acetylcholine", intensity: 0.3 },
+        ];
+      }
+      if (colOp === "read") {
+        return [{ pathway: "acetylcholine", intensity: 0.4 }];
+      }
+      return [];
+    }
+    default:
+      return [];
   }
+}
+
+// Legacy single-pathway function — kept for backward compatibility
+export function getPathwayForEvent(eventType: string): string | null {
+  const pathways = getPathwaysForEvent(eventType);
+  return pathways.length > 0 ? pathways[0].pathway : null;
 }
 
 // Region centers in 3D space (approximate, for drawing pathways between regions)
@@ -214,4 +333,8 @@ export const REGION_CENTERS: Record<string, [number, number, number]> = {
   "dentate-gyrus": [-2, 5.5, 1.5],
   "subiculum": [-2, 5, 1],
   "olfactory-bulb": [0, 5, 5],
+  // Specific nuclei for neurotransmitter pathway sources
+  "raphe-nuclei": [0, 3.5, -2],
+  "locus-coeruleus": [0, 4.5, -2.5],
+  "basal-forebrain": [-1, 6.5, 2.5],
 };

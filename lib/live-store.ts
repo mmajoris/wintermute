@@ -10,8 +10,7 @@ import {
   getRegionForCollection,
   getRegionForWorker,
   getRegionForQueue,
-  getPathwayForEvent,
-  NEUROTRANSMITTER_PATHWAYS,
+  getPathwaysForEvent,
 } from "./collection-mapping";
 import type { HippocampalCascadeEvent, ThalamicGateEvent, LLMCallEvent } from "./brain-events";
 
@@ -98,9 +97,13 @@ export interface LiveStore {
   hoverRegion: (id: string | null) => void;
   decayActivity: () => void;
   triggerThoughtPulse: () => void;
-  triggerPathway: (pathway: string) => void;
+  triggerPathway: (pathway: string, intensity?: number) => void;
   triggerSpreadingActivation: (sourceRegion: string, connectedRegions: string[]) => void;
+  startBaselineActivity: () => void;
+  stopBaselineActivity: () => void;
 }
+
+let baselineInterval: ReturnType<typeof setInterval> | null = null;
 
 const ACTIVITY_DECAY_RATE = 0.92;
 const MIN_ACTIVITY_THRESHOLD = 0.05;
@@ -153,10 +156,21 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
     const newActiveWorkers = new Map(state.activeWorkers);
     const newQueueStatus = new Map(state.queueStatus);
 
+    // Fire neurotransmitter pathways based on event type (multi-pathway, biologically accurate)
+    const pathways = getPathwaysForEvent(event.type, event as unknown as Record<string, unknown>);
+    for (const spec of pathways) {
+      get().triggerPathway(spec.pathway, spec.intensity);
+    }
+
     switch (event.type) {
       case "thought_loop_tick":
         updates.lastThoughtTick = event;
         updates.thoughtLoopPulse = 1;
+        activateRegion(newRegionActivity, "thalamus", now, "thought_tick");
+        if (event.impulse) {
+          activateRegion(newRegionActivity, "left-hemisphere", now, "impulse");
+          activateRegion(newRegionActivity, "right-hemisphere", now, "impulse");
+        }
         break;
 
       case "collection_activity": {
@@ -206,32 +220,37 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
       case "emotional_state":
         updates.emotionalState = event;
         activateRegion(newRegionActivity, "amygdala", now, "emotion");
-        get().triggerPathway("serotonin");
+        activateRegion(newRegionActivity, "raphe-nuclei", now, "serotonin_source");
         break;
 
       case "system_vitals":
         updates.systemVitals = event;
+        activateRegion(newRegionActivity, "medulla", now, "heartbeat");
+        activateRegion(newRegionActivity, "locus-coeruleus", now, "autonomic_tone");
+        activateRegion(newRegionActivity, "raphe-nuclei", now, "autonomic_tone");
         break;
 
       case "soul_cycle": {
         activateRegion(newRegionActivity, "left-hemisphere", now, "soul_cycle");
+        activateRegion(newRegionActivity, "right-hemisphere", now, "soul_cycle");
+        activateRegion(newRegionActivity, "basal-forebrain", now, "cholinergic_modulation");
         break;
       }
 
       case "action_dispatch": {
         activateRegion(newRegionActivity, "left-hemisphere", now, "action_dispatch");
+        activateRegion(newRegionActivity, "caudate-nucleus", now, "action_selection");
         break;
       }
 
       case "memory_event": {
         activateRegion(newRegionActivity, "hippocampus", now, "memory");
+        activateRegion(newRegionActivity, "basal-forebrain", now, "cholinergic_memory");
         if (event.operation === "retrieve") {
           get().triggerSpreadingActivation("hippocampus", [
             "entorhinal-cortex", "dentate-gyrus", "subiculum",
             "left-hemisphere", "amygdala",
           ]);
-          const pathway = getPathwayForEvent(event.type);
-          if (pathway) get().triggerPathway(pathway);
         }
         break;
       }
@@ -241,23 +260,22 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
         activateRegion(newRegionActivity, "substantia-nigra", now, "reward");
         const dopamine = 0.5 + (event.actual_reward || 0);
         updates.dopamineLevel = Math.max(0, Math.min(1, dopamine));
-        get().triggerPathway("dopamine");
         break;
       }
 
       case "error_correction": {
         activateRegion(newRegionActivity, "cerebellum", now, "error_correction");
-        const pathway = getPathwayForEvent(event.type);
-        if (pathway) get().triggerPathway(pathway);
+        activateRegion(newRegionActivity, "globus-pallidus", now, "gabaergic_output");
         break;
       }
 
       case "thalamic_gate": {
         activateRegion(newRegionActivity, "thalamus", now, "thalamic_gate");
         updates.lastThalamicGate = event as ThalamicGateEvent;
-        if ((event as ThalamicGateEvent).passed) {
-          get().triggerPathway("glutamate");
+        const gateEvent = event as ThalamicGateEvent;
+        if (gateEvent.gate_open || gateEvent.passed) {
           activateRegion(newRegionActivity, "left-hemisphere", now, "gate_passed");
+          activateRegion(newRegionActivity, "locus-coeruleus", now, "arousal_burst");
         }
         break;
       }
@@ -266,11 +284,11 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
         const cascade = event as HippocampalCascadeEvent;
         updates.lastCascade = cascade;
         activateRegion(newRegionActivity, "hippocampus", now, "cascade");
+        activateRegion(newRegionActivity, "basal-forebrain", now, "cholinergic_cascade");
         get().triggerSpreadingActivation("hippocampus", [
           "entorhinal-cortex", "dentate-gyrus", "subiculum",
           "left-hemisphere", "amygdala", "thalamus",
         ]);
-        get().triggerPathway("acetylcholine");
         break;
       }
 
@@ -285,6 +303,7 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
         const procs = state.activeProcesses.filter(p => p.name !== proc.name);
         if (proc.status === "active") procs.push(proc);
         updates.activeProcesses = procs;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "cortical_processing");
         break;
       }
     }
@@ -346,12 +365,12 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
 
   triggerThoughtPulse: () => set({ thoughtLoopPulse: 1 }),
 
-  triggerPathway: (pathway) => {
+  triggerPathway: (pathway, intensity = 1) => {
     const state = get();
     const existing = state.pathwayActivations.filter(
       p => Date.now() - p.startedAt < 3000
     );
-    existing.push({ pathway, startedAt: Date.now(), intensity: 1 });
+    existing.push({ pathway, startedAt: Date.now(), intensity });
     set({ pathwayActivations: existing });
   },
 
@@ -371,6 +390,25 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
     );
     active.push({ id, startedAt: Date.now(), nodes });
     set({ spreadingActivations: active });
+  },
+
+  startBaselineActivity: () => {
+    if (baselineInterval) return;
+    baselineInterval = setInterval(() => {
+      // The brain is NEVER quiet. All major neurotransmitter systems
+      // maintain tonic (baseline) firing rates at all times.
+      get().triggerPathway("glutamate", 0.1);
+      get().triggerPathway("gaba", 0.1);
+      get().triggerPathway("serotonin", 0.05);
+      get().triggerPathway("norepinephrine", 0.05);
+    }, 2000);
+  },
+
+  stopBaselineActivity: () => {
+    if (baselineInterval) {
+      clearInterval(baselineInterval);
+      baselineInterval = null;
+    }
   },
 }));
 
