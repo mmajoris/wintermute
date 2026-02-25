@@ -740,3 +740,113 @@ The visualization maps Qdrant collection names to brain regions. Key mappings re
 - [ ] Wire `src/lib/qdrant.ts` — collection read/write tracking
 - [ ] Test with curl against nulltruth.com
 - [ ] Verify events appear in the live visualization
+
+---
+
+## 9. Biological Accuracy Recommendations
+
+These are improvements to make Molly's event emissions more neurologically accurate, enabling better visualization of real brain dynamics.
+
+### 9.1 GABAergic Inhibition — Thalamic Gate Closed Events
+
+Currently, `thalamic_gate` is only emitted when the gate opens (signal passes). In real neuroscience, the thalamic reticular nucleus actively inhibits thalamic relay neurons via GABA when gating out irrelevant stimuli. This is not silence — it is active suppression.
+
+**Recommendation:** In `src/brain/thought-loop.ts`, emit a `thalamic_gate` event with `gate_open: false` when `checkGate()` returns null. This fires the GABA pathway visualization (purple inhibitory signal) and shows the brain actively filtering:
+
+```typescript
+const signal = await checkGate();
+if (!signal) {
+  emitBrainEvent({
+    type: 'thalamic_gate',
+    timestamp: new Date().toISOString(),
+    gate_open: false,
+    signal_strength: 0,
+  });
+  return;
+}
+```
+
+### 9.2 Source Region on Emotional State Events
+
+The amygdala, hypothalamus, and anterior insula all generate emotional responses, but they serve different functions:
+- **Amygdala**: Fear, threat detection, emotional salience
+- **Hypothalamus**: Homeostatic drives (hunger, thirst, temperature), hormonal responses
+- **Anterior insula**: Interoceptive awareness, disgust, empathy
+
+**Recommendation:** Add a `source_region` field to `emotional_state` events so the visualization can light up the correct structure:
+
+```typescript
+emitBrainEvent({
+  type: 'emotional_state',
+  timestamp: new Date().toISOString(),
+  valence: newValence,
+  arousal: newArousal,
+  mood: reaction.feeling || 'neutral',
+  dominant_emotion: reaction.feeling,
+  source_region: 'amygdala', // or 'hypothalamus' for homeostatic
+});
+```
+
+### 9.3 Locus Coeruleus Arousal Events
+
+The locus coeruleus (LC) is the brain's primary source of norepinephrine. It fires tonically during wakefulness and phasically during salient/alerting events. Molly has no explicit LC analog.
+
+**Recommendation:** Emit a norepinephrine-specific event when arousal changes significantly (e.g., in the thalamic gate when a high-priority signal arrives, or in the heartbeat when CPU spikes):
+
+```typescript
+// In heartbeat when system is stressed
+if (cpuUsage > 0.7 || !vitals.healthy) {
+  emitBrainEvent({
+    type: 'emotional_state',
+    timestamp,
+    valence: 0.3,
+    arousal: 0.8,
+    mood: 'alert',
+    dominant_emotion: 'vigilance',
+    source_region: 'locus_coeruleus',
+  });
+}
+```
+
+### 9.4 Differentiate Memory Operations by Hippocampal Subfield
+
+Real hippocampal memory processing involves distinct subfields:
+- **Dentate gyrus**: Pattern separation (novelty detection)
+- **CA3**: Pattern completion (associative recall)
+- **CA1**: Temporal context, output to cortex
+- **Subiculum**: Output relay to cortex
+
+**Recommendation:** Add a `subfield` field to `memory_event` for retrieval operations:
+
+```typescript
+emitBrainEvent({
+  type: 'memory_event',
+  timestamp: new Date().toISOString(),
+  operation: 'retrieve',
+  emotional_weight: avgWeight,
+  subfield: 'ca3', // or 'dentate_gyrus' for novelty
+});
+```
+
+### 9.5 Basal Ganglia Action Selection
+
+The basal ganglia (caudate, putamen, globus pallidus) implement action selection via the direct/indirect pathway. When Molly decides to express a thought or dispatch an action, this is basal ganglia circuit activity.
+
+**Recommendation:** Emit `action_dispatch` events with the basal ganglia pathway data:
+
+```typescript
+emitBrainEvent({
+  type: 'action_dispatch',
+  timestamp,
+  action: 'expression',
+  target: 'mike',
+  status: 'dispatched',
+  pathway: 'direct', // or 'indirect' for inhibited actions
+});
+```
+
+### 9.6 Default Mode Network vs Task-Positive Network
+
+Soul cycles represent default mode network (DMN) activity. When Molly is actively processing a message, that's the task-positive network (TPN). These two networks are anticorrelated — when one activates, the other suppresses.
+
+**Recommendation:** Emit a `network_switch` event when transitioning between conversation and idle reflection, so the visualization can show the DMN/TPN toggle.

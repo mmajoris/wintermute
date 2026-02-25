@@ -12,6 +12,7 @@ import { NeuralBrainViewProvider } from "./NeuralBrain3DViewer";
 import NeuralBrain3DViewer from "./NeuralBrain3DViewer";
 import NeuralEffects from "./NeuralEffects";
 import NeuralPathways from "./NeuralPathways";
+import NeuralSparks from "./NeuralSparks";
 import LiveTopBar from "./LiveTopBar";
 import LiveProcessPanel from "./LiveProcessPanel";
 import LiveMetricsBar from "./LiveMetricsBar";
@@ -264,6 +265,7 @@ export default function LiveBrainMonitor() {
           <NeuralBrainViewProvider visibleIds={visibleIds}>
             <RotatingBrain>
               <NeuralPathways />
+              <NeuralSparks />
             </RotatingBrain>
           </NeuralBrainViewProvider>
           <Stars
