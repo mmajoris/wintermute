@@ -9,17 +9,16 @@ import {
   REGION_CENTERS,
 } from "@/lib/collection-mapping";
 
-const PATHWAY_LIFETIME = 3000;
+const PATHWAY_LIFETIME = 2000;
 
 interface PathwayLine {
+  key: string;
   pathway: string;
-  source: string;
-  target: string;
   color: THREE.Color;
-  curve: THREE.CatmullRomCurve3;
+  geometry: THREE.TubeGeometry;
 }
 
-function buildPathwayLines(): PathwayLine[] {
+function buildAllPathways(): PathwayLine[] {
   const lines: PathwayLine[] = [];
 
   for (const [name, pathway] of Object.entries(NEUROTRANSMITTER_PATHWAYS)) {
@@ -33,18 +32,17 @@ function buildPathwayLines(): PathwayLine[] {
       const src = new THREE.Vector3(...sourceCenter);
       const tgt = new THREE.Vector3(...targetCenter);
       const mid = new THREE.Vector3().lerpVectors(src, tgt, 0.5);
-      // Arc the curve slightly outward for visual clarity
       mid.y += 1.5;
       mid.z += 0.5;
 
       const curve = new THREE.CatmullRomCurve3([src, mid, tgt], false, "catmullrom", 0.5);
+      const geometry = new THREE.TubeGeometry(curve, 32, 0.1, 6, false);
 
       lines.push({
+        key: `${name}-${target}`,
         pathway: name,
-        source: pathway.source,
-        target,
         color: new THREE.Color(pathway.color),
-        curve,
+        geometry,
       });
     }
   }
@@ -52,71 +50,54 @@ function buildPathwayLines(): PathwayLine[] {
   return lines;
 }
 
-function PathwayArc({ line, intensity }: { line: PathwayLine; intensity: number }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const matRef = useRef<THREE.MeshBasicMaterial>(null);
-
-  const tubeGeo = useMemo(() => {
-    return new THREE.TubeGeometry(line.curve, 32, 0.12, 6, false);
-  }, [line.curve]);
+export default function NeuralPathways() {
+  const allLines = useMemo(() => buildAllPathways(), []);
+  const matRefs = useRef<Map<string, THREE.MeshBasicMaterial>>(new Map());
 
   useFrame(() => {
-    if (!matRef.current) return;
-    matRef.current.opacity = intensity * 0.9;
-  });
-
-  if (intensity < 0.01) return null;
-
-  return (
-    <mesh ref={meshRef} geometry={tubeGeo}>
-      <meshBasicMaterial
-        ref={matRef}
-        color={line.color}
-        transparent
-        opacity={intensity * 0.9}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </mesh>
-  );
-}
-
-export default function NeuralPathways() {
-  const { pathwayActivations } = useLiveStore();
-
-  const allLines = useMemo(() => buildPathwayLines(), []);
-
-  // Build a map of active pathway names to their current intensity
-  const activePathways = useMemo(() => {
-    const map = new Map<string, number>();
+    const { pathwayActivations } = useLiveStore.getState();
     const now = Date.now();
+
+    // Calculate intensity per pathway name
+    const intensities = new Map<string, number>();
     for (const activation of pathwayActivations) {
       const elapsed = now - activation.startedAt;
-      if (elapsed < PATHWAY_LIFETIME) {
+      if (elapsed >= 0 && elapsed < PATHWAY_LIFETIME) {
         const progress = elapsed / PATHWAY_LIFETIME;
-        const fade = progress < 0.2
-          ? progress / 0.2
-          : 1 - ((progress - 0.2) / 0.8);
-        const current = map.get(activation.pathway) || 0;
-        map.set(activation.pathway, Math.max(current, fade * activation.intensity));
+        const fade = progress < 0.15
+          ? progress / 0.15
+          : 1 - ((progress - 0.15) / 0.85);
+        const current = intensities.get(activation.pathway) || 0;
+        intensities.set(activation.pathway, Math.max(current, fade * activation.intensity));
       }
     }
-    return map;
-  }, [pathwayActivations]);
 
-  if (activePathways.size === 0) return null;
+    // Update material opacities directly every frame
+    for (const line of allLines) {
+      const mat = matRefs.current.get(line.key);
+      if (mat) {
+        const intensity = intensities.get(line.pathway) || 0;
+        mat.opacity = intensity * 0.85;
+      }
+    }
+  });
 
   return (
     <group>
-      {allLines
-        .filter((line) => activePathways.has(line.pathway))
-        .map((line, i) => (
-          <PathwayArc
-            key={`${line.pathway}-${line.target}-${i}`}
-            line={line}
-            intensity={activePathways.get(line.pathway) || 0}
+      {allLines.map((line) => (
+        <mesh key={line.key} geometry={line.geometry}>
+          <meshBasicMaterial
+            ref={(ref) => {
+              if (ref) matRefs.current.set(line.key, ref);
+            }}
+            color={line.color}
+            transparent
+            opacity={0}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
           />
-        ))}
+        </mesh>
+      ))}
     </group>
   );
 }
