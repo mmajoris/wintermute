@@ -23,7 +23,8 @@ export default function LiveTopBar({
         : "#f59e0b";
 
   return (
-    <BracketFrame className="w-full px-4 py-2.5 flex items-center justify-between gap-4">
+    <BracketFrame variant="combo-e" className="w-full px-4 py-2.5">
+      <div className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-2.5 shrink-0">
         <div
           className="w-1.5 h-1.5 rounded-full transition-all duration-300"
@@ -86,6 +87,7 @@ export default function LiveTopBar({
         >
           Processes
         </button>
+      </div>
       </div>
     </BracketFrame>
   );

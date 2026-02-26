@@ -15,7 +15,11 @@
  */
 
 import { readFileSync } from "fs";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = resolve(__dirname, "..");
 
 const args = process.argv.slice(2);
 function getArg(name, fallback) {
@@ -25,9 +29,10 @@ function getArg(name, fallback) {
 
 let API_KEY;
 try {
-  const envFile = readFileSync(resolve(process.cwd(), ".env.local"), "utf8");
+  const envPath = resolve(PROJECT_ROOT, ".env.local");
+  const envFile = readFileSync(envPath, "utf8");
   const match = envFile.match(/^BRAIN_API_KEY=(.+)$/m);
-  if (match) API_KEY = match[1].trim();
+  if (match) API_KEY = match[1].trim().replace(/^["']|["']$/g, "");
 } catch { /* ignore */ }
 
 const BASE_URL = getArg("url", "http://localhost:3000");

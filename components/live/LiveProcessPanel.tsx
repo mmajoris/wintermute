@@ -180,7 +180,7 @@ export default function LiveProcessPanel() {
   return (
     <div className="flex flex-col gap-3 overflow-hidden min-h-0 flex-1">
       {selectedRegion && (
-        <BracketFrame className="pointer-events-auto overflow-hidden shrink-0">
+        <BracketFrame variant="combo-a" className="pointer-events-auto overflow-hidden shrink-0">
           <div className="h-px w-full"
             style={{ background: `linear-gradient(90deg, ${selectedRegion.color}, ${selectedRegion.color}00)` }}
           />
@@ -221,7 +221,7 @@ export default function LiveProcessPanel() {
       )}
 
       {activeWorkers.size > 0 && (
-        <BracketFrame className="pointer-events-auto p-4 shrink-0">
+        <BracketFrame variant="crosshair" className="pointer-events-auto p-4 shrink-0">
           <HudSectionTitle>Active Workers ({activeWorkers.size})</HudSectionTitle>
           <div className="mt-2 space-y-1.5">
             {Array.from(activeWorkers.values()).slice(0, 5).map((worker) => (
@@ -237,7 +237,8 @@ export default function LiveProcessPanel() {
         </BracketFrame>
       )}
 
-      <BracketFrame className="pointer-events-auto flex-1 min-h-0 overflow-hidden flex flex-col">
+      <BracketFrame variant="detail-5" className="pointer-events-auto flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-col h-full">
         <div className="p-3 shrink-0">
           <HudSectionTitle>
             Event Stream
@@ -270,6 +271,7 @@ export default function LiveProcessPanel() {
               </div>
             ))
           )}
+        </div>
         </div>
       </BracketFrame>
     </div>

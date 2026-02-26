@@ -17,6 +17,7 @@ import LiveTopBar from "./LiveTopBar";
 import LiveProcessPanel from "./LiveProcessPanel";
 import LiveLeftPanel from "./LiveLeftPanel";
 import { BracketFrame } from "./BracketFrame";
+import { HudThemeProvider } from "@/components/ui/hud-theme";
 import { useEventStream } from "./useEventStream";
 
 const spinSpeedRef = { current: 0.08 };
@@ -66,7 +67,7 @@ function LayerToggles({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25, duration: 0.4 }}
     >
-      <BracketFrame className="px-3 py-2">
+      <BracketFrame variant="asymmetric" className="px-3 py-2">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[10px] uppercase tracking-[0.12em] font-medium"
             style={{ color: "rgba(0, 200, 220, 0.7)" }}>
@@ -96,7 +97,7 @@ function LayerToggles({
   );
 }
 
-function ControlBar() {
+function ControlBar({ brightness, onBrightnessChange }: { brightness: number; onBrightnessChange: (v: number) => void }) {
   const [spinSpeed, setSpinSpeed] = useState(0.08);
   const [showShader, setShowShader] = useState(true);
   const [showWireframe, setShowWireframe] = useState(false);
@@ -108,7 +109,7 @@ function ControlBar() {
       transition={{ delay: 0.3, duration: 0.4 }}
       className="w-full"
     >
-      <BracketFrame className="overflow-hidden">
+      <BracketFrame variant="combo-b" className="overflow-hidden">
         <div className="flex items-center gap-3 px-3 py-2">
           <span className="text-[10px] uppercase tracking-[0.12em] font-medium"
             style={{ color: "rgba(0, 200, 220, 0.7)" }}>
@@ -122,6 +123,17 @@ function ControlBar() {
             onChange={(e) => { const v = parseFloat(e.target.value); setSpinSpeed(v); spinSpeedRef.current = v; }}
             className="w-20 h-0.5 appearance-none bg-neutral-700 rounded-full cursor-pointer accent-cyan-600"
           />
+
+          <div className="w-px h-3.5 bg-white/8" />
+
+          <span className="text-[9px] text-neutral-500 uppercase">UI</span>
+          <input type="range" min="0.1" max="2.5" step="0.05" value={brightness}
+            onChange={(e) => onBrightnessChange(parseFloat(e.target.value))}
+            className="w-20 h-0.5 appearance-none bg-neutral-700 rounded-full cursor-pointer accent-cyan-600"
+          />
+          <span className="text-[9px] font-mono w-6" style={{ color: "rgba(0, 200, 220, 0.5)" }}>
+            {brightness.toFixed(1)}
+          </span>
 
           <div className="w-px h-3.5 bg-white/8" />
 
@@ -159,7 +171,7 @@ function ConnectionHint() {
       exit={{ opacity: 0 }}
       className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
     >
-      <BracketFrame className="px-5 py-3 text-center">
+      <BracketFrame variant="detail-2" className="px-5 py-3 text-center">
         <p className="text-xs text-neutral-400">
           {connectionError
             ? `Connection error: ${connectionError}`
@@ -188,6 +200,7 @@ export default function LiveBrainMonitor() {
     ])
   );
   const [panelOpen, setPanelOpen] = useState(true);
+  const [hudBrightness, setHudBrightness] = useState(1);
 
   useEventStream();
 
@@ -222,6 +235,7 @@ export default function LiveBrainMonitor() {
   }, []);
 
   return (
+    <HudThemeProvider brightness={hudBrightness}>
     <div
       className="h-screen w-screen overflow-hidden grid"
       style={{
@@ -298,8 +312,9 @@ export default function LiveBrainMonitor() {
 
       {/* Row 3: Bottom control bar */}
       <div className="col-span-3 px-4 pb-4">
-        <ControlBar />
+        <ControlBar brightness={hudBrightness} onBrightnessChange={setHudBrightness} />
       </div>
     </div>
+    </HudThemeProvider>
   );
 }

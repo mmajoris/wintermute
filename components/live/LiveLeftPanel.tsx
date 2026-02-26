@@ -459,7 +459,7 @@ export default function LiveLeftPanel() {
   return (
     <>
       <LiveStatsPanel />
-      <BracketFrame className="p-4 overflow-hidden">
+      <BracketFrame variant="detail-3" className="p-4 overflow-hidden">
         <HudSectionTitle>Synaptic Activity</HudSectionTitle>
         <SynapticRadial />
         <div className="mt-1 space-y-1.5">
@@ -468,10 +468,10 @@ export default function LiveLeftPanel() {
           ))}
         </div>
       </BracketFrame>
-      <BracketFrame className="p-4 overflow-hidden shrink-0">
+      <BracketFrame variant="notched" className="p-4 overflow-hidden shrink-0">
         <CognitiveProcesses />
       </BracketFrame>
-      <BracketFrame className="p-4 overflow-hidden shrink-0">
+      <BracketFrame variant="combo-d" className="p-4 overflow-hidden shrink-0">
         <ActiveRegions />
       </BracketFrame>
     </>
