@@ -393,15 +393,7 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   },
 
   startBaselineActivity: () => {
-    if (baselineInterval) return;
-    baselineInterval = setInterval(() => {
-      // The brain is NEVER quiet. All major neurotransmitter systems
-      // maintain tonic (baseline) firing rates at all times.
-      get().triggerPathway("glutamate", 0.1);
-      get().triggerPathway("gaba", 0.1);
-      get().triggerPathway("serotonin", 0.05);
-      get().triggerPathway("norepinephrine", 0.05);
-    }, 2000);
+    // No-op: sparks only fire from real events
   },
 
   stopBaselineActivity: () => {

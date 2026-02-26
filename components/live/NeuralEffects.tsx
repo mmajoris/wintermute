@@ -7,11 +7,11 @@ export default function NeuralEffects() {
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={1.3}
-        luminanceThreshold={0.1}
-        luminanceSmoothing={0.9}
+        intensity={1.6}
+        luminanceThreshold={0.06}
+        luminanceSmoothing={0.85}
         mipmapBlur
-        radius={0.85}
+        radius={0.9}
       />
       <Vignette
         offset={0.25}

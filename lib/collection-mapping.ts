@@ -179,6 +179,153 @@ export const NEUROTRANSMITTER_PATHWAYS: Record<string, NeurotransmitterPathway> 
   },
 };
 
+// ── Cortical Fiber Tracts ────────────────────────────────────────────
+// White matter pathways that carry signals across the cortical surface.
+// These use the same interface as neurotransmitter pathways so they
+// integrate seamlessly with the existing spark system.
+export const CORTICAL_FIBER_TRACTS: Record<string, NeurotransmitterPathway> = {
+  // Thalamocortical radiations — thalamus fans out to all cortical areas
+  "thalamocortical-radiation-L": {
+    source: "thalamus",
+    targets: [
+      "prefrontal-cortex-L", "motor-cortex-L", "somatosensory-cortex-L",
+      "parietal-cortex-L", "temporal-cortex-L", "occipital-cortex-L",
+    ],
+    color: "#ff9944",
+  },
+  "thalamocortical-radiation-R": {
+    source: "thalamus",
+    targets: [
+      "prefrontal-cortex-R", "motor-cortex-R", "somatosensory-cortex-R",
+      "parietal-cortex-R", "temporal-cortex-R", "occipital-cortex-R",
+    ],
+    color: "#ff9944",
+  },
+
+  // Arcuate fasciculus — Broca's ↔ Wernicke's (language circuit)
+  "arcuate-fasciculus-L": {
+    source: "broca-area-L",
+    targets: ["wernicke-area-L", "angular-gyrus-L"],
+    color: "#ffaa55",
+  },
+  "arcuate-fasciculus-R": {
+    source: "broca-area-R",
+    targets: ["wernicke-area-R", "angular-gyrus-R"],
+    color: "#ffaa55",
+  },
+
+  // Superior longitudinal fasciculus — prefrontal ↔ parietal (executive attention)
+  "superior-longitudinal-fasciculus-L": {
+    source: "prefrontal-cortex-L",
+    targets: ["parietal-cortex-L", "angular-gyrus-L", "somatosensory-cortex-L"],
+    color: "#ffbb66",
+  },
+  "superior-longitudinal-fasciculus-R": {
+    source: "prefrontal-cortex-R",
+    targets: ["parietal-cortex-R", "angular-gyrus-R", "somatosensory-cortex-R"],
+    color: "#ffbb66",
+  },
+
+  // Dorsal visual stream — occipital → parietal ("where" pathway)
+  "dorsal-stream-L": {
+    source: "occipital-cortex-L",
+    targets: ["parietal-cortex-L", "motor-cortex-L"],
+    color: "#ff8844",
+  },
+  "dorsal-stream-R": {
+    source: "occipital-cortex-R",
+    targets: ["parietal-cortex-R", "motor-cortex-R"],
+    color: "#ff8844",
+  },
+
+  // Ventral visual stream — occipital → temporal ("what" pathway)
+  "ventral-stream-L": {
+    source: "occipital-cortex-L",
+    targets: ["temporal-cortex-L", "angular-gyrus-L"],
+    color: "#ff7733",
+  },
+  "ventral-stream-R": {
+    source: "occipital-cortex-R",
+    targets: ["temporal-cortex-R", "angular-gyrus-R"],
+    color: "#ff7733",
+  },
+
+  // Prefrontal executive pathways — prefrontal → motor + cingulate
+  "prefrontal-executive-L": {
+    source: "prefrontal-cortex-L",
+    targets: ["motor-cortex-L", "anterior-cingulate-L", "broca-area-L", "orbitofrontal-cortex-L"],
+    color: "#ffcc77",
+  },
+  "prefrontal-executive-R": {
+    source: "prefrontal-cortex-R",
+    targets: ["motor-cortex-R", "anterior-cingulate-R", "broca-area-R", "orbitofrontal-cortex-R"],
+    color: "#ffcc77",
+  },
+
+  // Corpus callosum projections — cross-hemispheric
+  "callosal-prefrontal": {
+    source: "prefrontal-cortex-L",
+    targets: ["prefrontal-cortex-R"],
+    color: "#ffaa66",
+  },
+  "callosal-motor": {
+    source: "motor-cortex-L",
+    targets: ["motor-cortex-R"],
+    color: "#ffaa66",
+  },
+  "callosal-parietal": {
+    source: "parietal-cortex-L",
+    targets: ["parietal-cortex-R"],
+    color: "#ffaa66",
+  },
+  "callosal-temporal": {
+    source: "temporal-cortex-L",
+    targets: ["temporal-cortex-R"],
+    color: "#ffaa66",
+  },
+  "callosal-occipital": {
+    source: "occipital-cortex-L",
+    targets: ["occipital-cortex-R"],
+    color: "#ffaa66",
+  },
+
+  // Cingulum bundle — anterior cingulate along the medial surface
+  "cingulum-bundle-L": {
+    source: "anterior-cingulate-L",
+    targets: ["parietal-cortex-L", "hippocampus"],
+    color: "#ffbb88",
+  },
+  "cingulum-bundle-R": {
+    source: "anterior-cingulate-R",
+    targets: ["parietal-cortex-R"],
+    color: "#ffbb88",
+  },
+
+  // Uncinate fasciculus — orbitofrontal ↔ temporal (emotional evaluation)
+  "uncinate-fasciculus-L": {
+    source: "orbitofrontal-cortex-L",
+    targets: ["temporal-cortex-L", "insular-cortex-L"],
+    color: "#ff9966",
+  },
+  "uncinate-fasciculus-R": {
+    source: "orbitofrontal-cortex-R",
+    targets: ["temporal-cortex-R", "insular-cortex-R"],
+    color: "#ff9966",
+  },
+
+  // Corticospinal tract — motor cortex → brainstem (motor output)
+  "corticospinal-L": {
+    source: "motor-cortex-L",
+    targets: ["midbrain", "pons"],
+    color: "#ffdd88",
+  },
+  "corticospinal-R": {
+    source: "motor-cortex-R",
+    targets: ["midbrain", "pons"],
+    color: "#ffdd88",
+  },
+};
+
 export interface PathwayActivationSpec {
   pathway: string;
   intensity: number;
@@ -201,18 +348,26 @@ export function getPathwaysForEvent(
         { pathway: "serotonin", intensity: 0.8 },
         { pathway: "norepinephrine", intensity: 0.6 },
         { pathway: "dopamine", intensity: 0.4 },
+        { pathway: "uncinate-fasciculus-L", intensity: 0.7 },
+        { pathway: "uncinate-fasciculus-R", intensity: 0.6 },
+        { pathway: "cingulum-bundle-L", intensity: 0.5 },
       ];
     case "thought_loop_tick":
       if (eventData && (eventData as { impulse?: boolean }).impulse) {
         return [
           { pathway: "glutamate", intensity: 0.8 },
           { pathway: "norepinephrine", intensity: 0.6 },
+          { pathway: "thalamocortical-radiation-L", intensity: 0.7 },
+          { pathway: "thalamocortical-radiation-R", intensity: 0.7 },
+          { pathway: "prefrontal-executive-L", intensity: 0.6 },
         ];
       }
       // Idle thalamocortical oscillation
       return [
         { pathway: "glutamate", intensity: 0.2 },
         { pathway: "gaba", intensity: 0.3 },
+        { pathway: "thalamocortical-radiation-L", intensity: 0.15 },
+        { pathway: "thalamocortical-radiation-R", intensity: 0.15 },
       ];
     case "memory_event": {
       const op = eventData && (eventData as { operation?: string }).operation;
@@ -220,19 +375,22 @@ export function getPathwaysForEvent(
         return [
           { pathway: "acetylcholine", intensity: 0.8 },
           { pathway: "glutamate", intensity: 0.6 },
+          { pathway: "cingulum-bundle-L", intensity: 0.7 },
+          { pathway: "thalamocortical-radiation-L", intensity: 0.5 },
         ];
       }
       if (op === "write") {
         return [
           { pathway: "acetylcholine", intensity: 0.7 },
           { pathway: "glutamate", intensity: 0.5 },
+          { pathway: "cingulum-bundle-L", intensity: 0.5 },
         ];
       }
       if (op === "consolidate") {
-        // Acetylcholine is SUPPRESSED during consolidation (NREM-like)
         return [
           { pathway: "acetylcholine", intensity: 0.3 },
           { pathway: "glutamate", intensity: 0.6 },
+          { pathway: "callosal-temporal", intensity: 0.4 },
         ];
       }
       if (op === "decay") {
@@ -246,55 +404,87 @@ export function getPathwaysForEvent(
         return [
           { pathway: "glutamate", intensity: 0.8 },
           { pathway: "norepinephrine", intensity: 0.5 },
+          { pathway: "thalamocortical-radiation-L", intensity: 0.8 },
+          { pathway: "thalamocortical-radiation-R", intensity: 0.8 },
         ];
       }
-      // Gate closed = thalamic reticular nucleus inhibition
       return [{ pathway: "gaba", intensity: 0.6 }];
     }
     case "hippocampal_cascade":
       return [
         { pathway: "acetylcholine", intensity: 0.9 },
         { pathway: "glutamate", intensity: 0.7 },
+        { pathway: "cingulum-bundle-L", intensity: 0.8 },
+        { pathway: "thalamocortical-radiation-L", intensity: 0.6 },
+        { pathway: "thalamocortical-radiation-R", intensity: 0.4 },
       ];
     case "error_correction":
-      // Purkinje cells are GABAergic, climbing fibers are glutamatergic
       return [
         { pathway: "gaba", intensity: 0.7 },
         { pathway: "glutamate", intensity: 0.5 },
+        { pathway: "cingulum-bundle-L", intensity: 0.6 },
+        { pathway: "prefrontal-executive-L", intensity: 0.5 },
       ];
     case "system_vitals":
-      // Autonomic brainstem rhythm: locus coeruleus + raphe tonic firing
       return [
         { pathway: "norepinephrine", intensity: 0.3 },
         { pathway: "serotonin", intensity: 0.2 },
+        { pathway: "thalamocortical-radiation-L", intensity: 0.12 },
+        { pathway: "thalamocortical-radiation-R", intensity: 0.12 },
       ];
     case "soul_cycle":
-      // DMN is glutamatergic with cholinergic attentional modulation
       return [
         { pathway: "glutamate", intensity: 0.6 },
         { pathway: "acetylcholine", intensity: 0.4 },
+        { pathway: "cingulum-bundle-L", intensity: 0.7 },
+        { pathway: "cingulum-bundle-R", intensity: 0.6 },
+        { pathway: "callosal-prefrontal", intensity: 0.5 },
+        { pathway: "prefrontal-executive-L", intensity: 0.5 },
+        { pathway: "prefrontal-executive-R", intensity: 0.4 },
       ];
     case "action_dispatch":
-      // Executive output with motivational dopamine signal
       return [
         { pathway: "glutamate", intensity: 0.7 },
         { pathway: "dopamine", intensity: 0.4 },
+        { pathway: "prefrontal-executive-L", intensity: 0.8 },
+        { pathway: "corticospinal-L", intensity: 0.7 },
+        { pathway: "callosal-motor", intensity: 0.5 },
       ];
     case "llm_call":
-      // Cortical processing burst
-      return [{ pathway: "glutamate", intensity: 0.8 }];
+      return [
+        { pathway: "glutamate", intensity: 0.8 },
+        { pathway: "arcuate-fasciculus-L", intensity: 0.8 },
+        { pathway: "superior-longitudinal-fasciculus-L", intensity: 0.7 },
+        { pathway: "prefrontal-executive-L", intensity: 0.7 },
+        { pathway: "thalamocortical-radiation-L", intensity: 0.6 },
+        { pathway: "callosal-prefrontal", intensity: 0.5 },
+      ];
     case "collection_activity": {
       const colOp = eventData && (eventData as { operation?: string }).operation;
+      const collection = eventData && (eventData as { collection?: string }).collection;
+      const isLanguage = collection && ["language_output", "language_comprehension", "narrative_engine"].includes(collection);
+      const isMemory = collection && ["memory_embeddings", "memory_consolidation", "pattern_completion"].includes(collection);
+      const isSensory = collection && ["sensory_encoders", "visual_processing"].includes(collection);
+
+      const specs: PathwayActivationSpec[] = [];
       if (colOp === "write") {
-        return [
-          { pathway: "glutamate", intensity: 0.4 },
-          { pathway: "acetylcholine", intensity: 0.3 },
-        ];
+        specs.push({ pathway: "glutamate", intensity: 0.4 }, { pathway: "acetylcholine", intensity: 0.3 });
+      } else if (colOp === "read") {
+        specs.push({ pathway: "acetylcholine", intensity: 0.4 });
       }
-      if (colOp === "read") {
-        return [{ pathway: "acetylcholine", intensity: 0.4 }];
+      if (isLanguage) {
+        specs.push({ pathway: "arcuate-fasciculus-L", intensity: 0.6 });
       }
-      return [];
+      if (isMemory) {
+        specs.push({ pathway: "cingulum-bundle-L", intensity: 0.5 });
+      }
+      if (isSensory) {
+        specs.push(
+          { pathway: "dorsal-stream-L", intensity: 0.5 },
+          { pathway: "ventral-stream-L", intensity: 0.5 },
+        );
+      }
+      return specs;
     }
     default:
       return [];
@@ -333,8 +523,36 @@ export const REGION_CENTERS: Record<string, [number, number, number]> = {
   "dentate-gyrus": [-2, 5.5, 1.5],
   "subiculum": [-2, 5, 1],
   "olfactory-bulb": [0, 5, 5],
-  // Specific nuclei for neurotransmitter pathway sources
   "raphe-nuclei": [0, 3.5, -2],
   "locus-coeruleus": [0, 4.5, -2.5],
   "basal-forebrain": [-1, 6.5, 2.5],
+
+  // ── Cortical surface areas (left hemisphere) ──────────────────────
+  // Brodmann-area-based positions on the outer cortex surface
+  "prefrontal-cortex-L": [-4, 14, 5],
+  "broca-area-L": [-5.5, 10, 4],
+  "motor-cortex-L": [-3, 15.5, 1],
+  "somatosensory-cortex-L": [-3, 15.5, -1],
+  "parietal-cortex-L": [-4, 14, -3],
+  "angular-gyrus-L": [-5, 11, -2],
+  "temporal-cortex-L": [-6, 7, 2],
+  "wernicke-area-L": [-5.5, 8.5, 0.5],
+  "occipital-cortex-L": [-2, 9, -6],
+  "anterior-cingulate-L": [-1.5, 13, 3],
+  "insular-cortex-L": [-4.5, 9, 1.5],
+  "orbitofrontal-cortex-L": [-3, 8, 5],
+
+  // ── Cortical surface areas (right hemisphere) ─────────────────────
+  "prefrontal-cortex-R": [4, 14, 5],
+  "broca-area-R": [5.5, 10, 4],
+  "motor-cortex-R": [3, 15.5, 1],
+  "somatosensory-cortex-R": [3, 15.5, -1],
+  "parietal-cortex-R": [4, 14, -3],
+  "angular-gyrus-R": [5, 11, -2],
+  "temporal-cortex-R": [6, 7, 2],
+  "wernicke-area-R": [5.5, 8.5, 0.5],
+  "occipital-cortex-R": [2, 9, -6],
+  "anterior-cingulate-R": [1.5, 13, 3],
+  "insular-cortex-R": [4.5, 9, 1.5],
+  "orbitofrontal-cortex-R": [3, 8, 5],
 };

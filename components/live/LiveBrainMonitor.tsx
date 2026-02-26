@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Stars } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as THREE from "three";
@@ -15,7 +15,8 @@ import NeuralPathways from "./NeuralPathways";
 import NeuralSparks from "./NeuralSparks";
 import LiveTopBar from "./LiveTopBar";
 import LiveProcessPanel from "./LiveProcessPanel";
-import LiveMetricsBar from "./LiveMetricsBar";
+import LiveLeftPanel from "./LiveLeftPanel";
+import { BracketFrame } from "./BracketFrame";
 import { useEventStream } from "./useEventStream";
 
 const spinSpeedRef = { current: 0.08 };
@@ -50,7 +51,7 @@ const LAYER_TOGGLE_CONFIG: { key: LayerKey; label: string; color: string }[] = [
   { key: "cranialNerves", label: "Nerves", color: "#22c55e" },
 ];
 
-function LayerControls({
+function LayerToggles({
   activeLayers,
   onToggle,
   onShowAll,
@@ -59,117 +60,89 @@ function LayerControls({
   onToggle: (k: LayerKey) => void;
   onShowAll: () => void;
 }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.25, duration: 0.4 }}
+    >
+      <BracketFrame className="px-3 py-2">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[10px] uppercase tracking-[0.12em] font-medium"
+            style={{ color: "rgba(0, 200, 220, 0.7)" }}>
+            Brain Layers
+          </span>
+          <button onClick={onShowAll}
+            className="ml-auto text-[9px] text-neutral-500 hover:text-neutral-300 transition-colors">
+            Show All
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {LAYER_TOGGLE_CONFIG.map(({ key, label, color }) => {
+            const active = activeLayers.has(key);
+            return (
+              <button key={key} onClick={() => onToggle(key)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium transition-all"
+                style={{ background: active ? `${color}15` : "transparent", color: active ? color : "#525252" }}>
+                <span className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: active ? color : "#333" }} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </BracketFrame>
+    </motion.div>
+  );
+}
+
+function ControlBar() {
   const [spinSpeed, setSpinSpeed] = useState(0.08);
   const [showShader, setShowShader] = useState(true);
   const [showWireframe, setShowWireframe] = useState(false);
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.4 }}
-      className="absolute top-20 left-4 z-20 flex flex-col gap-1.5"
+      className="w-full"
     >
-      <div className="backdrop-blur-xl bg-black/40 border border-white/6 rounded-xl p-2 flex flex-col gap-1">
-        <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-semibold px-1 mb-0.5">
-          Layers
-        </span>
-        {LAYER_TOGGLE_CONFIG.map(({ key, label, color }) => {
-          const active = activeLayers.has(key);
-          return (
-            <button
-              key={key}
-              onClick={() => onToggle(key)}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-              style={{
-                background: active ? `${color}15` : "transparent",
-                color: active ? color : "#525252",
-              }}
-            >
-              <span
-                className="w-2 h-2 rounded-full transition-all duration-200"
-                style={{
-                  backgroundColor: active ? color : "#333",
-                  boxShadow: active ? `0 0 6px ${color}60` : "none",
-                }}
-              />
-              {label}
-            </button>
-          );
-        })}
-        <div className="h-px bg-white/4 my-1" />
-        <button
-          onClick={onShowAll}
-          className="text-[10px] text-neutral-500 hover:text-neutral-300 px-2 py-1 transition-colors"
-        >
-          Show All
-        </button>
-        <div className="h-px bg-white/4 my-1" />
-        <div className="px-1 flex flex-col gap-1">
-          <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-semibold">
-            Spin
+      <BracketFrame className="overflow-hidden">
+        <div className="flex items-center gap-3 px-3 py-2">
+          <span className="text-[10px] uppercase tracking-[0.12em] font-medium"
+            style={{ color: "rgba(0, 200, 220, 0.7)" }}>
+            Controls
           </span>
-          <input
-            type="range"
-            min="0"
-            max="0.5"
-            step="0.01"
-            value={spinSpeed}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              setSpinSpeed(v);
-              spinSpeedRef.current = v;
-            }}
-            className="w-full h-1 appearance-none bg-neutral-700 rounded-full cursor-pointer accent-cyan-500"
+
+          <div className="w-px h-3.5 bg-white/8" />
+
+          <span className="text-[9px] text-neutral-500 uppercase">Spin</span>
+          <input type="range" min="0" max="0.5" step="0.01" value={spinSpeed}
+            onChange={(e) => { const v = parseFloat(e.target.value); setSpinSpeed(v); spinSpeedRef.current = v; }}
+            className="w-20 h-0.5 appearance-none bg-neutral-700 rounded-full cursor-pointer accent-cyan-600"
           />
+
+          <div className="w-px h-3.5 bg-white/8" />
+
+          <button onClick={() => { const n = !showShader; setShowShader(n); renderOptionsRef.showShader = n; }}
+            className="text-[10px] px-2 py-0.5 rounded transition-colors"
+            style={{
+              color: showShader ? "rgba(0, 200, 220, 0.9)" : "rgba(255,255,255,0.2)",
+              background: showShader ? "rgba(0, 200, 220, 0.08)" : "transparent",
+            }}>
+            Shader
+          </button>
+          <button onClick={() => { const n = !showWireframe; setShowWireframe(n); renderOptionsRef.showWireframe = n; }}
+            className="text-[10px] px-2 py-0.5 rounded transition-colors"
+            style={{
+              color: showWireframe ? "rgba(0, 200, 220, 0.9)" : "rgba(255,255,255,0.2)",
+              background: showWireframe ? "rgba(0, 200, 220, 0.08)" : "transparent",
+            }}>
+            Wire
+          </button>
         </div>
-        <div className="h-px bg-white/4 my-1" />
-        <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-semibold px-1 mb-0.5">
-          Render
-        </span>
-        <button
-          onClick={() => {
-            const next = !showShader;
-            setShowShader(next);
-            renderOptionsRef.showShader = next;
-          }}
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-          style={{
-            background: showShader ? "#6366f115" : "transparent",
-            color: showShader ? "#818cf8" : "#525252",
-          }}
-        >
-          <span
-            className="w-2 h-2 rounded-full transition-all duration-200"
-            style={{
-              backgroundColor: showShader ? "#818cf8" : "#333",
-              boxShadow: showShader ? "0 0 6px #818cf860" : "none",
-            }}
-          />
-          Shader
-        </button>
-        <button
-          onClick={() => {
-            const next = !showWireframe;
-            setShowWireframe(next);
-            renderOptionsRef.showWireframe = next;
-          }}
-          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-          style={{
-            background: showWireframe ? "#22d3ee15" : "transparent",
-            color: showWireframe ? "#22d3ee" : "#525252",
-          }}
-        >
-          <span
-            className="w-2 h-2 rounded-full transition-all duration-200"
-            style={{
-              backgroundColor: showWireframe ? "#22d3ee" : "#333",
-              boxShadow: showWireframe ? "0 0 6px #22d3ee60" : "none",
-            }}
-          />
-          Wireframe
-        </button>
-      </div>
+      </BracketFrame>
     </motion.div>
   );
 }
@@ -184,9 +157,9 @@ function ConnectionHint() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
+      className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
     >
-      <div className="backdrop-blur-xl bg-black/30 border border-white/[0.04] rounded-2xl px-5 py-3 text-center">
+      <BracketFrame className="px-5 py-3 text-center">
         <p className="text-xs text-neutral-400">
           {connectionError
             ? `Connection error: ${connectionError}`
@@ -195,7 +168,7 @@ function ConnectionHint() {
         <p className="text-[10px] text-neutral-600 mt-0.5">
           Waiting for Molly to come online
         </p>
-      </div>
+      </BracketFrame>
     </motion.div>
   );
 }
@@ -211,6 +184,7 @@ export default function LiveBrainMonitor() {
       "limbic",
       "basalGanglia",
       "deepStructures",
+      "cranialNerves",
     ])
   );
   const [panelOpen, setPanelOpen] = useState(true);
@@ -248,66 +222,84 @@ export default function LiveBrainMonitor() {
   }, []);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#060609] relative">
-      <Canvas
-        camera={{ position: [0, 10, 30], fov: 40 }}
-        gl={{ antialias: true, alpha: true }}
-        dpr={[1, 2]}
-        className="!absolute inset-0"
-        onPointerMissed={() => selectRegion(null)}
-      >
-        <color attach="background" args={["#020206"]} />
-        <fog attach="fog" args={["#020206", 40, 80]} />
-        {/* Very minimal lighting - the shader provides its own glow */}
-        <ambientLight intensity={0.08} />
+    <div
+      className="h-screen w-screen overflow-hidden grid"
+      style={{
+        background: "#030406",
+        gridTemplateColumns: "280px 1fr 320px",
+        gridTemplateRows: "auto 1fr auto",
+      }}
+    >
+      {/* Row 1: Top bar */}
+      <div className="col-span-3 w-full px-4 pt-4">
+        <LiveTopBar panelOpen={panelOpen} onTogglePanel={() => setPanelOpen((v) => !v)} />
+      </div>
 
-        <Suspense fallback={null}>
-          <NeuralBrainViewProvider visibleIds={visibleIds}>
-            <RotatingBrain>
-              <NeuralPathways />
-              <NeuralSparks />
-            </RotatingBrain>
-          </NeuralBrainViewProvider>
-          <Stars
-            radius={120}
-            depth={100}
-            count={600}
-            factor={2.5}
-            saturation={0.1}
-            fade
-            speed={0.1}
+      {/* Row 2: Left column */}
+      <div className="overflow-y-auto min-h-0 flex flex-col gap-3 p-4">
+        <LiveLeftPanel />
+      </div>
+
+      {/* Row 2: Center - Brain Canvas */}
+      <div className="relative min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0">
+          <Canvas
+            camera={{ position: [0, 10, 38], fov: 40 }}
+            gl={{ antialias: true, alpha: true }}
+            dpr={[1, 2]}
+            className="w-full h-full"
+            onPointerMissed={() => selectRegion(null)}
+          >
+          <color attach="background" args={["#030406"]} />
+          <fog attach="fog" args={["#030406", 40, 80]} />
+            <ambientLight intensity={0.08} />
+
+            <Suspense fallback={null}>
+              <NeuralBrainViewProvider visibleIds={visibleIds}>
+                <RotatingBrain>
+                  <NeuralPathways visibleRegions={visibleIds} />
+                  <NeuralSparks visibleRegions={visibleIds} />
+                </RotatingBrain>
+              </NeuralBrainViewProvider>
+              <NeuralEffects />
+            </Suspense>
+
+            <OrbitControls
+              makeDefault
+              enableDamping
+              dampingFactor={0.06}
+              minDistance={12}
+              maxDistance={55}
+              enablePan
+              target={[0, 7, 0]}
+              rotateSpeed={0.5}
+            />
+          </Canvas>
+
+          <AnimatePresence>
+            <ConnectionHint />
+          </AnimatePresence>
+        </div>
+
+        {/* Layer toggles below the canvas */}
+        <div className="px-4 py-3">
+          <LayerToggles
+            activeLayers={activeLayers}
+            onToggle={toggleLayer}
+            onShowAll={showAll}
           />
-          <NeuralEffects />
-        </Suspense>
+        </div>
+      </div>
 
-        <OrbitControls
-          makeDefault
-          enableDamping
-          dampingFactor={0.06}
-          minDistance={12}
-          maxDistance={55}
-          enablePan
-          target={[0, 7, 0]}
-          rotateSpeed={0.5}
-        />
-      </Canvas>
+      {/* Row 2: Right column */}
+      <div className="overflow-y-auto min-h-0 flex flex-col gap-3 p-4">
+        <AnimatePresence>{panelOpen && <LiveProcessPanel />}</AnimatePresence>
+      </div>
 
-      <LiveTopBar panelOpen={panelOpen} onTogglePanel={() => setPanelOpen((v) => !v)} />
-      <LayerControls
-        activeLayers={activeLayers}
-        onToggle={toggleLayer}
-        onShowAll={showAll}
-      />
-
-      <AnimatePresence>
-        <ConnectionHint />
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {panelOpen && <LiveProcessPanel />}
-      </AnimatePresence>
-
-      <LiveMetricsBar />
+      {/* Row 3: Bottom control bar */}
+      <div className="col-span-3 px-4 pb-4">
+        <ControlBar />
+      </div>
     </div>
   );
 }

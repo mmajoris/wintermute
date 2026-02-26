@@ -5,16 +5,20 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useLiveStore } from "@/lib/live-store";
 import { buildPathwayCurves } from "@/lib/pathway-curves";
+import { getContainingRegion } from "@/lib/region-visibility";
 
-const SPARK_TRAVEL_TIME = 600;
-const TRAIL_COUNT = 4;
-const TRAIL_SPACING = 0.06;
-const MAX_SPARKS = 60;
-const INSTANCES_PER_SPARK = 1 + TRAIL_COUNT; // head + trail
+const SPARK_TRAVEL_TIME = 500;
+const TRAIL_COUNT = 6;
+const TRAIL_SPACING = 0.035;
+const MAX_SPARKS = 80;
+const INSTANCES_PER_SPARK = 1 + TRAIL_COUNT;
 const MAX_INSTANCES = MAX_SPARKS * INSTANCES_PER_SPARK;
 
-const TRAIL_SCALES = [1.0, 0.7, 0.45, 0.25];
-const TRAIL_ALPHAS = [1.0, 0.55, 0.25, 0.08];
+const TRAIL_SCALES = [0.7, 0.5, 0.35, 0.22, 0.12, 0.05];
+const TRAIL_ALPHAS = [0.8, 0.5, 0.3, 0.15, 0.07, 0.02];
+
+const SPARK_ORANGE = new THREE.Color(1.0, 0.55, 0.05);
+const SPARK_WHITE_HOT = new THREE.Color(1.0, 0.9, 0.7);
 
 interface ActiveSpark {
   curveIndex: number;
@@ -25,19 +29,24 @@ interface ActiveSpark {
 const _dummy = new THREE.Object3D();
 const _color = new THREE.Color();
 
-export default function NeuralSparks() {
+interface NeuralSparksProps {
+  visibleRegions: Set<string>;
+}
+
+export default function NeuralSparks({ visibleRegions }: NeuralSparksProps) {
   const allCurves = useMemo(() => buildPathwayCurves(), []);
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const seenActivations = useRef<Set<string>>(new Set());
   const activeSparks = useRef<ActiveSpark[]>([]);
 
-  const sphereGeo = useMemo(() => new THREE.SphereGeometry(0.15, 8, 6), []);
+  const sparkGeo = useMemo(() => new THREE.IcosahedronGeometry(0.028, 1), []);
   const sparkMat = useMemo(() => {
     const mat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
       opacity: 1,
       depthWrite: false,
+      toneMapped: false,
     });
     mat.blending = THREE.AdditiveBlending;
     return mat;
@@ -53,6 +62,19 @@ export default function NeuralSparks() {
     });
     return map;
   }, [allCurves]);
+
+  // Determine which curve indices are visible based on source/target regions
+  const visibleCurveIndices = useMemo(() => {
+    const visible = new Set<number>();
+    allCurves.forEach((c, i) => {
+      const sourceVisible = getContainingRegion(c.source, visibleRegions);
+      const targetVisible = getContainingRegion(c.target, visibleRegions);
+      if (sourceVisible && targetVisible) {
+        visible.add(i);
+      }
+    });
+    return visible;
+  }, [allCurves, visibleRegions]);
 
   useFrame(() => {
     if (!meshRef.current) return;
@@ -106,21 +128,27 @@ export default function NeuralSparks() {
       const curve = allCurves[spark.curveIndex];
       if (!curve) continue;
 
-      // Head spark
-      const headPos = curve.curve.getPointAt(Math.min(progress, 1));
+      // Skip rendering if the curve's regions are hidden
+      if (!visibleCurveIndices.has(spark.curveIndex)) continue;
+
+      const headT = Math.min(progress, 1);
+      const headPos = curve.curve.getPointAt(headT);
+
+      // Stretch the head spark along the travel direction
+      const tangent = curve.curve.getTangentAt(headT);
       _dummy.position.copy(headPos);
-      _dummy.scale.setScalar(1.0);
+      _dummy.scale.set(1.0, 1.0, 2.5);
+      _dummy.lookAt(headPos.x + tangent.x, headPos.y + tangent.y, headPos.z + tangent.z);
       _dummy.updateMatrix();
       meshRef.current.setMatrixAt(instanceIndex, _dummy.matrix);
-      _color.copy(curve.color).multiplyScalar(1.5 * spark.intensity);
+      _color.copy(SPARK_WHITE_HOT).multiplyScalar(3.0 * spark.intensity);
       meshRef.current.setColorAt(instanceIndex, _color);
       instanceIndex++;
 
-      // Trail points
+      // Trail points — progressively dimmer and more orange
       for (let t = 0; t < TRAIL_COUNT; t++) {
         const trailProgress = progress - TRAIL_SPACING * (t + 1);
         if (trailProgress < 0 || instanceIndex >= MAX_INSTANCES) {
-          // Hide off-screen
           _dummy.position.set(0, -100, 0);
           _dummy.scale.setScalar(0);
           _dummy.updateMatrix();
@@ -132,12 +160,18 @@ export default function NeuralSparks() {
           continue;
         }
 
-        const trailPos = curve.curve.getPointAt(Math.min(trailProgress, 1));
+        const trailT = Math.min(trailProgress, 1);
+        const trailPos = curve.curve.getPointAt(trailT);
+        const trailTangent = curve.curve.getTangentAt(trailT);
+        const s = TRAIL_SCALES[t];
         _dummy.position.copy(trailPos);
-        _dummy.scale.setScalar(TRAIL_SCALES[t]);
+        _dummy.scale.set(s, s, s * 1.8);
+        _dummy.lookAt(trailPos.x + trailTangent.x, trailPos.y + trailTangent.y, trailPos.z + trailTangent.z);
         _dummy.updateMatrix();
         meshRef.current.setMatrixAt(instanceIndex, _dummy.matrix);
-        _color.copy(curve.color).multiplyScalar(TRAIL_ALPHAS[t] * spark.intensity);
+
+        const orangeMix = Math.min(1, (t + 1) / TRAIL_COUNT);
+        _color.copy(SPARK_WHITE_HOT).lerp(SPARK_ORANGE, orangeMix).multiplyScalar(TRAIL_ALPHAS[t] * spark.intensity * 2.5);
         meshRef.current.setColorAt(instanceIndex, _color);
         instanceIndex++;
       }
@@ -161,7 +195,7 @@ export default function NeuralSparks() {
   return (
     <instancedMesh
       ref={meshRef}
-      args={[sphereGeo, sparkMat, MAX_INSTANCES]}
+      args={[sparkGeo, sparkMat, MAX_INSTANCES]}
       frustumCulled={false}
     />
   );

@@ -122,7 +122,7 @@ export default function LiveMetricsBar() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4, duration: 0.4 }}
-      className="absolute bottom-4 left-4 right-4 z-20"
+      className="absolute bottom-4 left-[220px] right-4 z-20"
     >
       <div className="backdrop-blur-xl bg-black/40 border border-white/[0.06] rounded-2xl px-4 py-3">
         <div className="flex items-center justify-between gap-6">
