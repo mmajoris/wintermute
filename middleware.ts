@@ -5,7 +5,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Public routes - no auth needed
-  const publicRoutes = ["/", "/login"];
+  const publicRoutes = ["/", "/login", "/examples"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
   // API routes for brain events (uses API key auth, not session)

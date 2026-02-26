@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Neuron Model</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+  canvas { display: block; }
+  #info {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(100,200,255,0.6); font-size: 13px; text-align: center;
+    pointer-events: none;
+  }
+  #controls {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; z-index: 10;
+  }
+  .btn {
+    padding: 8px 18px; border: 1px solid rgba(255,140,0,0.5);
+    background: rgba(40,20,0,0.8); color: #f90; cursor: pointer;
+    border-radius: 20px; font-size: 13px; transition: all 0.3s;
+    backdrop-filter: blur(10px); user-select: none;
+  }
+  .btn:hover { background: rgba(80,40,0,0.6); border-color: #fa0; }
+  .btn.active { background: rgba(120,60,0,0.5); border-color: #fff; color: #fff; }
+</style>
+</head>
+<body>
+<div id="info">Click & drag to rotate &bull; Scroll to zoom</div>
+<div id="controls">
+  <button class="btn active" id="btnLightning">Lightning</button>
+  <button class="btn" id="btnIntensity">Intensity: Medium</button>
+  <button class="btn" id="btnRandomize">Randomize</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 7);
+
+var renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.5;
+document.body.appendChild(renderer.domElement);
+
+// Generate texture procedurally on canvas (no external file needed)
+function makeNeuronTexture() {
+  var size = 512;
+  var canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, size, size);
+
+  function drawGlow(cx, cy, r, color) {
+    var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    grad.addColorStop(0, color);
+    grad.addColorStop(0.4, 'rgba(0,120,255,0.3)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+  }
+
+  function drawBranch(x, y, angle, len, width, depth) {
+    if (depth <= 0 || len < 5) return;
+    var ex = x + Math.cos(angle) * len;
+    var ey = y + Math.sin(angle) * len;
+    ctx.strokeStyle = 'rgba(60,200,255,' + (0.3 + depth*0.1) + ')';
+    ctx.lineWidth = width;
+    ctx.shadowColor = '#00aaff';
+    ctx.shadowBlur = width * 3;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    var branches = 1 + Math.floor(Math.random() * 2);
+    for (var b = 0; b < branches; b++) {
+      drawBranch(ex, ey, angle + (Math.random()-0.5)*1.5,
+        len * (0.5 + Math.random()*0.3), width*0.6, depth-1);
+    }
+  }
+
+  // Two cell bodies
+  var neurons = [[190, 240], [330, 270]];
+  neurons.forEach(function(n) {
+    for (var i = 0; i < 8; i++) {
+      var a = Math.PI * 2 * i / 8 + (Math.random()-0.5)*0.4;
+      drawBranch(n[0], n[1], a, 50 + Math.random()*80, 2+Math.random()*2, 4);
+    }
+  });
+  neurons.forEach(function(n) {
+    drawGlow(n[0], n[1], 80, 'rgba(80,200,255,0.6)');
+    drawGlow(n[0], n[1], 40, 'rgba(180,240,255,0.8)');
+  });
+
+  // Specks
+  for (var i = 0; i < 60; i++) {
+    var sx = Math.random()*size, sy = Math.random()*size;
+    ctx.fillStyle = 'rgba(200,240,255,' + (0.3+Math.random()*0.5) + ')';
+    ctx.beginPath(); ctx.arc(sx, sy, 1+Math.random()*2, 0, Math.PI*2); ctx.fill();
+  }
+
+  var tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+var neuronTexture = makeNeuronTexture();
+var branchTexture = makeNeuronTexture();
+
+// Materials
+var bodyMat = new THREE.MeshPhysicalMaterial({
+  map: neuronTexture, emissiveMap: neuronTexture,
+  emissive: new THREE.Color(0x0077bb), emissiveIntensity: 0.7,
+  roughness: 0.25, metalness: 0.1, clearcoat: 0.5
+});
+var dendriteMat = new THREE.MeshPhysicalMaterial({
+  map: branchTexture, emissiveMap: branchTexture,
+  emissive: new THREE.Color(0x0066aa), emissiveIntensity: 0.7,
+  roughness: 0.3, metalness: 0.1, clearcoat: 0.3
+});
+var glowMat = new THREE.MeshBasicMaterial({
+  color: 0x00aaff, transparent: true, opacity: 0.08, side: THREE.BackSide
+});
+
+// Lights
+scene.add(new THREE.AmbientLight(0x334466, 0.6));
+var pl1 = new THREE.PointLight(0x00bbff, 3, 25); pl1.position.set(4, 3, 4); scene.add(pl1);
+var pl2 = new THREE.PointLight(0x0055ff, 2, 20); pl2.position.set(-4, -2, 3); scene.add(pl2);
+var pl3 = new THREE.PointLight(0x00ffcc, 1.5, 18); pl3.position.set(0, 4, -3); scene.add(pl3);
+var lightningLight = new THREE.PointLight(0xff8800, 0, 8); scene.add(lightningLight);
+
+var neuronGroup = new THREE.Group();
+scene.add(neuronGroup);
+
+// Seeded random
+var seed = 42;
+function srand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+
+function createBranchTube(points, radius) {
+  if (points.length < 2) return null;
+  var curve = new THREE.CatmullRomCurve3(points);
+  var segments = Math.max(6, points.length * 5);
+  var radialSegs = 6;
+  var geo = new THREE.TubeGeometry(curve, segments, radius, radialSegs, false);
+  var uvAttr = geo.attributes.uv;
+  var totalLength = curve.getLength();
+  var circumference = 2 * Math.PI * radius;
+  var vScale = totalLength / Math.max(circumference, 0.01);
+  for (var i = 0; i <= segments; i++) {
+    var t = i / segments;
+    for (var j = 0; j <= radialSegs; j++) {
+      var idx = i * (radialSegs + 1) + j;
+      uvAttr.setXY(idx, j / radialSegs, t * vScale);
+    }
+  }
+  uvAttr.needsUpdate = true;
+  return geo;
+}
+
+function generateBranch(startPos, direction, length, thickness, depth, maxDepth, allBranches) {
+  if (depth > maxDepth || length < 0.08 || thickness < 0.008) return;
+  var points = [startPos.clone()];
+  var steps = Math.max(3, Math.floor(length / 0.12));
+  var currentPos = startPos.clone();
+  var currentDir = direction.clone().normalize();
+  for (var i = 1; i <= steps; i++) {
+    currentDir.add(new THREE.Vector3((srand()-0.5)*0.25,(srand()-0.5)*0.25,(srand()-0.5)*0.25)).normalize();
+    currentPos = currentPos.clone().add(currentDir.clone().multiplyScalar(length / steps));
+    points.push(currentPos.clone());
+    if (i > 1 && i < steps - 1 && srand() < 0.3 && depth < maxDepth) {
+      var bd = currentDir.clone();
+      bd.applyAxisAngle(new THREE.Vector3(srand()-0.5,srand()-0.5,srand()-0.5).normalize(), (srand()-0.5)*2.2);
+      generateBranch(currentPos.clone(), bd, length*srand()*0.45, thickness*0.5, depth+1, maxDepth, allBranches);
+    }
+  }
+  allBranches.push({ points: points, thickness: thickness });
+  var nc = depth < 2 ? Math.floor(srand()*3)+1 : Math.floor(srand()*2);
+  for (var c = 0; c < nc; c++) {
+    var cd = currentDir.clone();
+    cd.applyAxisAngle(new THREE.Vector3(srand()-0.5,srand()-0.5,srand()-0.5).normalize(), (srand()-0.5)*1.8);
+    generateBranch(currentPos.clone(), cd, length*(0.4+srand()*0.3), thickness*(0.5+srand()*0.2), depth+1, maxDepth, allBranches);
+  }
+}
+
+var allGlobalBranches = [];
+var lightningBolts = [];
+
+function buildNeuron(cx, cy, cz, bodyRadius) {
+  var group = new THREE.Group();
+  var bodyGeo = new THREE.SphereGeometry(bodyRadius, 32, 32);
+  var pos = bodyGeo.attributes.position;
+  for (var i = 0; i < pos.count; i++) {
+    var x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    var len = Math.sqrt(x*x+y*y+z*z);
+    var n = 1 + 0.07*Math.sin(x*5)*Math.cos(y*7)*Math.sin(z*6);
+    pos.setXYZ(i, x/len*bodyRadius*n, y/len*bodyRadius*n, z/len*bodyRadius*n);
+  }
+  bodyGeo.computeVertexNormals();
+  var body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.set(cx, cy, cz);
+  group.add(body);
+  var glow = new THREE.Mesh(new THREE.SphereGeometry(bodyRadius*1.35,24,24), glowMat);
+  glow.position.set(cx, cy, cz); group.add(glow);
+  var core = new THREE.Mesh(new THREE.SphereGeometry(bodyRadius*0.45,16,16),
+    new THREE.MeshBasicMaterial({color:0xaaddff,transparent:true,opacity:0.35}));
+  core.position.set(cx, cy, cz); group.add(core);
+
+  var center = new THREE.Vector3(cx, cy, cz);
+  var numD = 8 + Math.floor(srand()*4);
+  for (var d = 0; d < numD; d++) {
+    var theta = srand()*Math.PI*2;
+    var phi = Math.acos(2*srand()-1);
+    var dir = new THREE.Vector3(Math.sin(phi)*Math.cos(theta), Math.sin(phi)*Math.sin(theta), Math.cos(phi));
+    var startPos = center.clone().add(dir.clone().multiplyScalar(bodyRadius*0.9));
+    var allBranches = [];
+    generateBranch(startPos, dir, 1.0+srand()*1.8, 0.03+srand()*0.04, 0, 4, allBranches);
+    for (var bi = 0; bi < allBranches.length; bi++) {
+      var branch = allBranches[bi];
+      if (branch.points.length < 2) continue;
+      var tubeGeo = createBranchTube(branch.points, branch.thickness);
+      if (tubeGeo) {
+        group.add(new THREE.Mesh(tubeGeo, dendriteMat));
+        allGlobalBranches.push({ points: branch.points.map(function(p){return p.clone();}) });
+      }
+      if (srand() < 0.4) {
+        var tip = branch.points[branch.points.length-1];
+        var dotMat = new THREE.MeshPhysicalMaterial({
+          map:branchTexture, emissiveMap:branchTexture,
+          emissive:new THREE.Color(0x0088cc), emissiveIntensity:0.9,
+          transparent:true, opacity:0.8
+        });
+        var dot = new THREE.Mesh(new THREE.SphereGeometry(branch.thickness*1.8,6,6), dotMat);
+        dot.position.copy(tip); group.add(dot);
+      }
+    }
+  }
+  return group;
+}
+
+function buildScene(newSeed) {
+  while (neuronGroup.children.length) neuronGroup.remove(neuronGroup.children[0]);
+  for (var i = 0; i < lightningBolts.length; i++) {
+    scene.remove(lightningBolts[i].line);
+    lightningBolts[i].line.geometry.dispose();
+    lightningBolts[i].line.material.dispose();
+    for (var f = 0; f < lightningBolts[i].forkLines.length; f++) {
+      scene.remove(lightningBolts[i].forkLines[f]);
+      lightningBolts[i].forkLines[f].geometry.dispose();
+      lightningBolts[i].forkLines[f].material.dispose();
+    }
+  }
+  lightningBolts = [];
+  allGlobalBranches = [];
+  seed = newSeed;
+  neuronGroup.add(buildNeuron(-0.9, 0.1, 0, 0.55));
+  seed = newSeed + 95;
+  neuronGroup.add(buildNeuron(1.0, -0.1, 0.2, 0.5));
+  // Connecting axon
+  var cp = [];
+  for (var i = 0; i <= 20; i++) {
+    var t = i/20;
+    cp.push(new THREE.Vector3(
+      -0.9+t*1.9+Math.sin(t*Math.PI*3)*0.12,
+      0.1+(t-0.5)*-0.2+Math.sin(t*Math.PI*2)*0.18,
+      t*0.2+Math.sin(t*Math.PI*4)*0.08
+    ));
+  }
+  var cGeo = createBranchTube(cp, 0.028);
+  if (cGeo) {
+    neuronGroup.add(new THREE.Mesh(cGeo, dendriteMat));
+    allGlobalBranches.push({ points: cp });
+  }
+}
+buildScene(42);
+
+// ========== LIGHTNING ==========
+var lightningEnabled = true;
+var lightningIntensity = 1;
+
+// Pick a random point on the neuron structure for start/end
+function getRandomNeuronPoint() {
+  if (allGlobalBranches.length === 0) return new THREE.Vector3(0,0,0);
+  var branch = allGlobalBranches[Math.floor(Math.random() * allGlobalBranches.length)];
+  var idx = Math.floor(Math.random() * branch.points.length);
+  return branch.points[idx].clone();
+}
+
+// Generate a realistic jagged lightning path between two points
+// Uses midpoint displacement (fractal subdivision) for natural look
+function generateLightningPath(start, end, generations, displacement) {
+  var points = [start.clone(), end.clone()];
+  for (var gen = 0; gen < generations; gen++) {
+    var newPoints = [points[0]];
+    for (var i = 0; i < points.length - 1; i++) {
+      var mid = points[i].clone().lerp(points[i+1], 0.5);
+      // Perpendicular displacement for that classic zigzag
+      var dir = points[i+1].clone().sub(points[i]).normalize();
+      var perp1 = new THREE.Vector3(-dir.y, dir.x, dir.z).normalize();
+      if (perp1.length() < 0.1) perp1.set(1,0,0);
+      var perp2 = dir.clone().cross(perp1).normalize();
+      mid.add(perp1.multiplyScalar((Math.random()-0.5) * displacement));
+      mid.add(perp2.multiplyScalar((Math.random()-0.5) * displacement));
+      newPoints.push(mid);
+      newPoints.push(points[i+1]);
+    }
+    points = newPoints;
+    displacement *= 0.5; // Each level gets finer
+  }
+  return points;
+}
+
+// Create a glowing flash sphere at a point
+function createFlashSphere(position, radius, color) {
+  var geo = new THREE.SphereGeometry(radius, 8, 8);
+  var mat = new THREE.MeshBasicMaterial({
+    color: color, transparent: true, opacity: 1.0,
+    blending: THREE.AdditiveBlending
+  });
+  var mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(position);
+  return mesh;
+}
+
+function spawnBranchLightning() {
+  if (allGlobalBranches.length < 1) return;
+
+  // Pick a clear START point and END point on the neuron
+  var startPt = getRandomNeuronPoint();
+  var endPt = getRandomNeuronPoint();
+  // Make sure they're not too close
+  var attempts = 0;
+  while (startPt.distanceTo(endPt) < 0.8 && attempts < 10) {
+    endPt = getRandomNeuronPoint();
+    attempts++;
+  }
+
+  var dist = startPt.distanceTo(endPt);
+  var displacement = dist * 0.25; // Zigzag amplitude proportional to length
+
+  // Main bolt: thick, bright, deeply jagged
+  var mainPath = generateLightningPath(startPt, endPt, 5, displacement);
+
+  // --- Main bolt: bright core (white-hot center) ---
+  var coreGeo = new THREE.BufferGeometry().setFromPoints(mainPath);
+  var coreMat = new THREE.LineBasicMaterial({
+    color: new THREE.Color(1.0, 0.95, 0.8),
+    transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending
+  });
+  var coreLine = new THREE.Line(coreGeo, coreMat);
+  neuronGroup.add(coreLine);
+
+  // --- Main bolt: orange glow (wider visual, drawn twice offset for thickness) ---
+  var glowGeo = new THREE.BufferGeometry().setFromPoints(mainPath);
+  var glowMat2 = new THREE.LineBasicMaterial({
+    color: new THREE.Color(1.0, 0.55, 0.0),
+    transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending
+  });
+  var glowLine = new THREE.Line(glowGeo, glowMat2);
+  glowLine.scale.setScalar(1.003); // Slightly larger for glow effect
+  neuronGroup.add(glowLine);
+
+  // --- Flash spheres at START and END ---
+  var startFlash = createFlashSphere(startPt, 0.08 + Math.random()*0.04, 0xffaa33);
+  var endFlash = createFlashSphere(endPt, 0.1 + Math.random()*0.05, 0xffcc44);
+  neuronGroup.add(startFlash);
+  neuronGroup.add(endFlash);
+
+  // --- Fork branches splitting off the main bolt ---
+  var forkLines = [];
+  var numForks = 2 + Math.floor(Math.random() * 4);
+  for (var f = 0; f < numForks; f++) {
+    // Pick a random point along the main bolt to fork from
+    var forkIdx = Math.floor(Math.random() * (mainPath.length - 4)) + 2;
+    var forkStart = mainPath[forkIdx].clone();
+    // Fork aims roughly away from main direction, shorter
+    var forkLen = dist * (0.15 + Math.random() * 0.25);
+    var forkDir = new THREE.Vector3(
+      (Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)
+    ).normalize().multiplyScalar(forkLen);
+    var forkEnd = forkStart.clone().add(forkDir);
+    var forkPath = generateLightningPath(forkStart, forkEnd, 3, forkLen * 0.3);
+
+    var fGeo = new THREE.BufferGeometry().setFromPoints(forkPath);
+    var fMat = new THREE.LineBasicMaterial({
+      color: new THREE.Color(1.0, 0.6, 0.15),
+      transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending
+    });
+    var fLine = new THREE.Line(fGeo, fMat);
+    neuronGroup.add(fLine);
+    forkLines.push(fLine);
+
+    // Tiny flash at fork tip
+    if (Math.random() < 0.5) {
+      var fTip = createFlashSphere(forkEnd, 0.03, 0xff8800);
+      neuronGroup.add(fTip);
+      forkLines.push(fTip); // track for cleanup
+    }
+  }
+
+  // Position the dynamic orange light at the midpoint of the bolt
+  var midPt = mainPath[Math.floor(mainPath.length / 2)];
+  lightningLight.position.copy(midPt);
+  lightningLight.intensity = 5 + Math.random() * 4;
+  lightningLight.color.setHex(0xff9930);
+
+  // Emit sparks at both endpoints
+  emitSparks(startPt, 5);
+  emitSparks(endPt, 8);
+
+  lightningBolts.push({
+    line: coreLine,
+    glowLine: glowLine,
+    forkLines: forkLines,
+    startFlash: startFlash,
+    endFlash: endFlash,
+    life: 0,
+    maxLife: 0.4 + Math.random() * 0.5,
+    flickerRate: 20 + Math.random() * 40
+  });
+}
+
+// Spark particles
+var sparkCount = 150;
+var sparkGeo = new THREE.BufferGeometry();
+var sparkPos = new Float32Array(sparkCount * 3);
+var sparkVel = new Float32Array(sparkCount * 3);
+var sparkLife = new Float32Array(sparkCount);
+for (var i = 0; i < sparkCount; i++) { sparkPos[i*3]=99; sparkPos[i*3+1]=99; sparkPos[i*3+2]=99; sparkLife[i]=0; }
+sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+var sparkParticles = new THREE.Points(sparkGeo, new THREE.PointsMaterial({
+  color: 0xff9900, size: 0.06, transparent: true, opacity: 0.9,
+  blending: THREE.AdditiveBlending, sizeAttenuation: true
+}));
+scene.add(sparkParticles);
+var nextSpark = 0;
+function emitSparks(position, count) {
+  for (var i = 0; i < count; i++) {
+    var idx = nextSpark % sparkCount;
+    sparkPos[idx*3]=position.x; sparkPos[idx*3+1]=position.y; sparkPos[idx*3+2]=position.z;
+    sparkVel[idx*3]=(Math.random()-0.5)*0.15; sparkVel[idx*3+1]=(Math.random()-0.5)*0.15; sparkVel[idx*3+2]=(Math.random()-0.5)*0.15;
+    sparkLife[idx]=1.0;
+    nextSpark++;
+  }
+}
+
+// Blue particles
+var particleCount = 300;
+var pGeo = new THREE.BufferGeometry();
+var pPos = new Float32Array(particleCount * 3);
+var pVel = new Float32Array(particleCount * 3);
+for (var i = 0; i < particleCount; i++) {
+  pPos[i*3]=(Math.random()-0.5)*12; pPos[i*3+1]=(Math.random()-0.5)*12; pPos[i*3+2]=(Math.random()-0.5)*12;
+  pVel[i*3]=(Math.random()-0.5)*0.002; pVel[i*3+1]=(Math.random()-0.5)*0.002; pVel[i*3+2]=(Math.random()-0.5)*0.002;
+}
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+var particles = new THREE.Points(pGeo, new THREE.PointsMaterial({
+  color:0x66bbee, size:0.04, transparent:true, opacity:0.5,
+  blending:THREE.AdditiveBlending, sizeAttenuation:true
+}));
+scene.add(particles);
+
+// Controls
+var isDragging = false, prevMouse = {x:0,y:0};
+var targetRotY = 0, targetRotX = 0;
+renderer.domElement.addEventListener('mousedown', function(e){ isDragging=true; prevMouse={x:e.clientX,y:e.clientY}; });
+window.addEventListener('mouseup', function(){ isDragging=false; });
+window.addEventListener('mousemove', function(e){
+  if(!isDragging) return;
+  targetRotY += (e.clientX-prevMouse.x)*0.005;
+  targetRotX += (e.clientY-prevMouse.y)*0.005;
+  prevMouse = {x:e.clientX,y:e.clientY};
+});
+renderer.domElement.addEventListener('wheel', function(e){
+  camera.position.z = Math.max(2, Math.min(15, camera.position.z + e.deltaY*0.005));
+});
+renderer.domElement.addEventListener('touchstart', function(e){ isDragging=true; prevMouse={x:e.touches[0].clientX,y:e.touches[0].clientY}; });
+renderer.domElement.addEventListener('touchmove', function(e){
+  e.preventDefault();
+  if(e.touches.length===1){
+    targetRotY+=(e.touches[0].clientX-prevMouse.x)*0.005;
+    targetRotX+=(e.touches[0].clientY-prevMouse.y)*0.005;
+    prevMouse={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  }
+}, {passive:false});
+renderer.domElement.addEventListener('touchend', function(){ isDragging=false; });
+
+// Button handlers
+document.getElementById('btnLightning').addEventListener('click', function(){
+  lightningEnabled = !lightningEnabled; this.classList.toggle('active');
+});
+document.getElementById('btnIntensity').addEventListener('click', function(){
+  lightningIntensity = (lightningIntensity + 1) % 3;
+  var labels = ['Low', 'Medium', 'High'];
+  this.textContent = 'Intensity: ' + labels[lightningIntensity];
+});
+document.getElementById('btnRandomize').addEventListener('click', function(){
+  buildScene(Math.floor(Math.random() * 100000));
+});
+
+// Animate
+var clock = new THREE.Clock();
+var lastLightning = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  var t = clock.getElapsedTime();
+
+  // No auto-rotation, only user drag
+  neuronGroup.rotation.y += targetRotY;
+  neuronGroup.rotation.x += targetRotX;
+  targetRotY *= 0.92; targetRotX *= 0.92;
+
+  bodyMat.emissiveIntensity = 0.6 + Math.sin(t*1.5)*0.2;
+  dendriteMat.emissiveIntensity = 0.6 + Math.sin(t*2.0)*0.25;
+
+  pl1.position.x = Math.sin(t*0.4)*5; pl1.position.z = Math.cos(t*0.4)*5;
+  pl2.position.x = Math.cos(t*0.3)*4; pl2.position.z = Math.sin(t*0.3)*4;
+
+  // Lightning spawning
+  if (lightningEnabled) {
+    var intervals = [2.0, 1.0, 0.4];
+    if (t - lastLightning > intervals[lightningIntensity]) {
+      lastLightning = t;
+      spawnBranchLightning();
+    }
+  }
+
+  // Update lightning bolts
+  for (var i = lightningBolts.length - 1; i >= 0; i--) {
+    var bolt = lightningBolts[i];
+    bolt.life += 0.016;
+    var progress = bolt.life / bolt.maxLife;
+    if (progress >= 1) {
+      // Cleanup all objects
+      neuronGroup.remove(bolt.line);
+      bolt.line.geometry.dispose(); bolt.line.material.dispose();
+      if (bolt.glowLine) {
+        neuronGroup.remove(bolt.glowLine);
+        bolt.glowLine.geometry.dispose(); bolt.glowLine.material.dispose();
+      }
+      for (var f = 0; f < bolt.forkLines.length; f++) {
+        neuronGroup.remove(bolt.forkLines[f]);
+        if (bolt.forkLines[f].geometry) bolt.forkLines[f].geometry.dispose();
+        if (bolt.forkLines[f].material) bolt.forkLines[f].material.dispose();
+      }
+      if (bolt.startFlash) {
+        neuronGroup.remove(bolt.startFlash);
+        bolt.startFlash.geometry.dispose(); bolt.startFlash.material.dispose();
+      }
+      if (bolt.endFlash) {
+        neuronGroup.remove(bolt.endFlash);
+        bolt.endFlash.geometry.dispose(); bolt.endFlash.material.dispose();
+      }
+      lightningBolts.splice(i, 1);
+      continue;
+    }
+
+    // Realistic flicker: rapid on/off like real lightning
+    var flicker = Math.random() < 0.15 ? 0.2 : 1.0; // occasional dim flicker
+    var fade = progress < 0.1 ? progress / 0.1 : Math.pow(1.0 - progress, 2); // quick ramp up, slow fade
+
+    // Core bolt - bright white/yellow
+    bolt.line.material.opacity = fade * flicker;
+    // Glow bolt - orange
+    if (bolt.glowLine) bolt.glowLine.material.opacity = fade * flicker * 0.6;
+    // Forks
+    for (var f = 0; f < bolt.forkLines.length; f++) {
+      if (bolt.forkLines[f].material) bolt.forkLines[f].material.opacity = fade * flicker * 0.5;
+    }
+    // Flash spheres shrink and fade
+    if (bolt.startFlash) {
+      var sf = Math.max(0, 1.0 - progress * 3);
+      bolt.startFlash.material.opacity = sf * flicker;
+      bolt.startFlash.scale.setScalar(1.0 + (1.0 - sf) * 0.5);
+    }
+    if (bolt.endFlash) {
+      var ef = Math.max(0, 1.0 - progress * 2.5);
+      bolt.endFlash.material.opacity = ef * flicker;
+      bolt.endFlash.scale.setScalar(1.0 + (1.0 - ef) * 0.8);
+    }
+  }
+
+  lightningLight.intensity *= 0.85;
+
+  // Update sparks
+  for (var i = 0; i < sparkCount; i++) {
+    if (sparkLife[i] > 0) {
+      sparkLife[i] -= 0.03;
+      sparkPos[i*3] += sparkVel[i*3]; sparkPos[i*3+1] += sparkVel[i*3+1]; sparkPos[i*3+2] += sparkVel[i*3+2];
+      sparkVel[i*3] *= 0.96; sparkVel[i*3+1] *= 0.96; sparkVel[i*3+2] *= 0.96;
+      if (sparkLife[i] <= 0) { sparkPos[i*3]=99; sparkPos[i*3+1]=99; sparkPos[i*3+2]=99; }
+    }
+  }
+  sparkParticles.geometry.attributes.position.needsUpdate = true;
+
+  // Blue particles
+  var pp = particles.geometry.attributes.position.array;
+  for (var i = 0; i < particleCount; i++) {
+    pp[i*3] += pVel[i*3]+Math.sin(t+i)*0.0003;
+    pp[i*3+1] += pVel[i*3+1]+Math.cos(t*0.7+i)*0.0003;
+    pp[i*3+2] += pVel[i*3+2];
+    for (var a=0;a<3;a++) { if(pp[i*3+a]>6)pp[i*3+a]=-6; if(pp[i*3+a]<-6)pp[i*3+a]=6; }
+  }
+  particles.geometry.attributes.position.needsUpdate = true;
+  particles.rotation.y = t * 0.01;
+
+  camera.lookAt(0,0,0);
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', function(){
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+})();
+</script>
+</body>
+</html>
