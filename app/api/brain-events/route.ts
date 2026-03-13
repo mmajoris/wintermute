@@ -8,8 +8,8 @@ const BRAIN_API_KEY = process.env.BRAIN_API_KEY;
 
 function validateApiKey(request: NextRequest): boolean {
   if (!BRAIN_API_KEY) {
-    console.warn("[brain-events] BRAIN_API_KEY not set, allowing all requests");
-    return true;
+    console.error("[brain-events] BRAIN_API_KEY not set — rejecting all requests");
+    return false;
   }
 
   const authHeader = request.headers.get("authorization");

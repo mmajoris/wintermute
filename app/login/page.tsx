@@ -3,7 +3,6 @@
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -11,7 +10,7 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/explorer";
+  const callbackUrl = searchParams.get("callbackUrl") || "/live";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,26 +26,20 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Invalid credentials");
+        setError("AUTHENTICATION FAILED");
         setLoading(false);
       } else if (result?.ok) {
         window.location.href = callbackUrl;
       }
     } catch {
-      setError("An error occurred");
+      setError("SYSTEM ERROR");
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label
-          htmlFor="email"
-          className="block text-xs text-neutral-500 uppercase tracking-wider mb-2"
-        >
-          Email
-        </label>
+    <form onSubmit={handleSubmit}>
+      <div className="term-field-group">
         <input
           id="email"
           type="email"
@@ -54,18 +47,10 @@ function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           autoComplete="email"
-          className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder-neutral-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-          placeholder="admin@wintermute.local"
+          placeholder="USERNAME"
+          className="term-input"
         />
-      </div>
 
-      <div>
-        <label
-          htmlFor="password"
-          className="block text-xs text-neutral-500 uppercase tracking-wider mb-2"
-        >
-          Password
-        </label>
         <input
           id="password"
           type="password"
@@ -73,94 +58,240 @@ function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           autoComplete="current-password"
-          className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder-neutral-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-          placeholder="••••••••••••"
+          placeholder="PASSWORD"
+          className="term-input"
         />
       </div>
 
       {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center"
-        >
+        <div className="term-error">
           {error}
-        </motion.div>
+        </div>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 disabled:cursor-not-allowed rounded-xl text-white font-medium transition-all duration-200 flex items-center justify-center gap-2"
-      >
-        {loading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Authenticating...
-          </>
-        ) : (
-          "Access System"
-        )}
-      </button>
+      <div className="term-actions">
+        <button type="submit" disabled={loading} className="term-btn">
+          {loading ? "WAIT..." : "LOGIN"}
+        </button>
+      </div>
     </form>
   );
 }
 
 function LoginFormFallback() {
   return (
-    <div className="space-y-5">
-      <div className="h-[72px] bg-white/[0.02] rounded-xl animate-pulse" />
-      <div className="h-[72px] bg-white/[0.02] rounded-xl animate-pulse" />
-      <div className="h-[48px] bg-indigo-600/50 rounded-xl animate-pulse" />
+    <div className="term-field-group">
+      <div className="term-input" style={{ opacity: 0.3 }}>&nbsp;</div>
+      <div className="term-input" style={{ opacity: 0.3 }}>&nbsp;</div>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#060609] flex items-center justify-center p-4">
-      {/* Background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      </div>
+    <div className="term-root">
+      <style>{`
+        :root {
+          --t: #5bc4b5;
+          --t2: rgba(91, 196, 181, 0.18);
+          --t3: rgba(91, 196, 181, 0.06);
+          --bg: #0b1015;
+        }
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative z-10 w-full max-w-md"
-      >
-        <div className="backdrop-blur-xl bg-black/40 border border-white/[0.06] rounded-3xl p-8">
-          {/* Logo/Title */}
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div
-                className="w-3 h-3 rounded-full bg-indigo-500"
-                style={{ boxShadow: "0 0 12px #6366f180" }}
-              />
-              <h1 className="text-2xl font-bold text-white tracking-wide">
-                WINTERMUTE
-              </h1>
-            </div>
-            <p className="text-sm text-neutral-500">
-              Neural Architecture Visualization
-            </p>
-          </div>
+        .term-root {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg);
+          background-image:
+            repeating-linear-gradient(
+              0deg,
+              rgba(91, 196, 181, 0.02) 0px,
+              rgba(91, 196, 181, 0.02) 1px,
+              transparent 1px,
+              transparent 3px
+            );
+          position: relative;
+          overflow: hidden;
+          font-family: "Courier New", Courier, monospace;
+          padding: 2rem;
+        }
 
-          {/* Login Form */}
-          <Suspense fallback={<LoginFormFallback />}>
-            <LoginForm />
-          </Suspense>
+        .term-root::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(ellipse at 50% 40%, rgba(91,196,181,0.05) 0%, transparent 65%);
+          pointer-events: none;
+        }
 
-          {/* Security notice */}
-          <div className="mt-6 pt-6 border-t border-white/[0.04]">
-            <p className="text-[10px] text-neutral-600 text-center">
-              This system is restricted. Unauthorized access attempts are logged.
-            </p>
-          </div>
+        @keyframes blink {
+          50% { opacity: 0; }
+        }
+
+        /* Main container */
+        .term-box {
+          position: relative;
+          width: 100%;
+          max-width: 480px;
+          border: 1.5px dashed var(--t2);
+          padding: 3rem 2.5rem 2.5rem;
+        }
+
+        .term-box::before,
+        .term-box::after {
+          content: "";
+          position: absolute;
+          width: 10px;
+          height: 10px;
+        }
+        .term-box::before {
+          top: -1px; left: -1px;
+          border-top: 1.5px solid var(--t);
+          border-left: 1.5px solid var(--t);
+          opacity: 0.4;
+        }
+        .term-box::after {
+          bottom: -1px; right: -1px;
+          border-bottom: 1.5px solid var(--t);
+          border-right: 1.5px solid var(--t);
+          opacity: 0.4;
+        }
+
+        /* Logo area */
+        .term-logo {
+          text-align: center;
+          margin-bottom: 2.5rem;
+          padding-bottom: 2rem;
+          border-bottom: 1px solid var(--t2);
+        }
+
+        .term-logo-glyph {
+          font-size: 28px;
+          letter-spacing: 0.35em;
+          color: var(--t);
+          opacity: 0.25;
+          line-height: 1;
+          margin-bottom: 8px;
+        }
+
+        .term-logo-name {
+          font-size: 13px;
+          letter-spacing: 0.35em;
+          color: var(--t);
+          opacity: 0.35;
+          font-weight: 400;
+        }
+
+        /* Title + subtitle */
+        .term-heading {
+          margin-bottom: 1.8rem;
+        }
+
+        .term-sub {
+          font-size: 9px;
+          letter-spacing: 0.3em;
+          color: var(--t);
+          opacity: 0.3;
+          text-transform: uppercase;
+        }
+
+        .term-field-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.8rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .term-input {
+          width: 100%;
+          padding: 11px 14px;
+          background: transparent;
+          border: 1.5px solid var(--t2);
+          color: var(--t);
+          font-family: "Courier New", Courier, monospace;
+          font-size: 11px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          outline: none;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .term-input::placeholder {
+          color: var(--t);
+          opacity: 0.25;
+        }
+
+        .term-input:focus {
+          border-color: var(--t);
+          box-shadow: 0 0 10px var(--t3), inset 0 0 10px var(--t3);
+        }
+
+        /* Error */
+        .term-error {
+          font-size: 10px;
+          letter-spacing: 0.2em;
+          color: var(--t);
+          opacity: 0.8;
+          margin-bottom: 1rem;
+          animation: blink 1.5s step-end infinite;
+        }
+
+        /* Actions */
+        .term-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 0.8rem;
+        }
+
+        .term-btn {
+          display: inline-block;
+          padding: 10px 24px;
+          background: transparent;
+          border: 1.5px solid var(--t2);
+          color: var(--t);
+          font-family: "Courier New", Courier, monospace;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.2s;
+          align-self: flex-start;
+        }
+
+        .term-btn:hover:not(:disabled) {
+          border-color: var(--t);
+          background: var(--t3);
+          box-shadow: 0 0 14px var(--t3);
+        }
+
+        .term-btn:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+      `}</style>
+
+      {/* Main container */}
+      <div className="term-box">
+        {/* Logo area */}
+        <div className="term-logo">
+          <div className="term-logo-glyph">&#9674;&#9674;&#9674;</div>
+          <div className="term-logo-name">NULLTRUTH</div>
         </div>
-      </motion.div>
+
+        {/* Subtitle */}
+        <div className="term-heading">
+          <div className="term-sub">SECURE TERMINAL</div>
+        </div>
+
+        {/* Form */}
+        <Suspense fallback={<LoginFormFallback />}>
+          <LoginForm />
+        </Suspense>
+      </div>
     </div>
   );
 }

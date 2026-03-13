@@ -1,5 +1,6 @@
 "use client";
 
+import { signOut } from "next-auth/react";
 import { useLiveStore } from "@/lib/live-store";
 import { BracketFrame } from "./BracketFrame";
 
@@ -124,6 +125,13 @@ export default function LiveTopBar({
         <TopBarToggle label="Atlas" active={atlasOpen} onClick={onToggleAtlas} />
         <TopBarToggle label="Architecture" active={architectureOpen} onClick={onToggleArchitecture} />
         <TopBarToggle label="Processes" active={panelOpen} onClick={onTogglePanel} />
+        <div className="w-px h-3.5 bg-white/8" />
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="px-2 py-1 text-[10px] text-neutral-600 hover:text-red-400 transition-colors"
+        >
+          Logout
+        </button>
       </div>
       </div>
     </BracketFrame>

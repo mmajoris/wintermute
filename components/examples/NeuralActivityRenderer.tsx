@@ -57,7 +57,7 @@ function useSparks(
 
   useEffect(() => {
     const img = new Image();
-    img.src = "/neuron-overlay.png";
+    img.src = "/api/assets/neuron-overlay.png";
     img.onload = () => { maskRef.current = img; };
 
     const canvas = canvasRef.current;
@@ -262,7 +262,7 @@ export default function NeuralActivityRenderer({ onSubscribe }: { onSubscribe?: 
       {/* Base image */}
       <div className={`${styles.layer} ${styles.sway}`} style={{ filter: "url(#neuron-warp) brightness(1.4)", opacity: 0.55, zIndex: 1 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/neuron-overlay.png" alt="" className={styles.img} />
+        <img src="/api/assets/neuron-overlay.png" alt="" className={styles.img} />
       </div>
 
       {/* Orange sparks -- masked to neuron alpha */}
@@ -271,13 +271,13 @@ export default function NeuralActivityRenderer({ onSubscribe }: { onSubscribe?: 
       {/* Drift layer */}
       <div className={`${styles.layer} ${styles.drift}`} style={{ opacity: 0.15, mixBlendMode: "screen", filter: "brightness(1.6)", zIndex: 3 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/neuron-overlay.png" alt="" className={styles.img} />
+        <img src="/api/assets/neuron-overlay.png" alt="" className={styles.img} />
       </div>
 
       {/* Breathe glow */}
       <div className={`${styles.layer} ${styles.breathe}`} style={{ opacity: 0.08, mixBlendMode: "screen", filter: "brightness(1.6)", zIndex: 4 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/neuron-overlay.png" alt="" className={styles.imgBlur} />
+        <img src="/api/assets/neuron-overlay.png" alt="" className={styles.imgBlur} />
       </div>
 
       {/* Vignette */}

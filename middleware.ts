@@ -1,44 +1,64 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const BRAIN_API_KEY = process.env.BRAIN_API_KEY;
+
+function hasBearerKey(req: NextRequest): boolean {
+  if (!BRAIN_API_KEY) return false;
+  const auth = req.headers.get("authorization");
+  if (!auth) return false;
+  const [scheme, token] = auth.split(" ");
+  return scheme?.toLowerCase() === "bearer" && token === BRAIN_API_KEY;
+}
+
+function hasSessionToken(req: NextRequest): boolean {
+  return !!(
+    req.cookies.get("authjs.session-token")?.value ||
+    req.cookies.get("__Secure-authjs.session-token")?.value
+  );
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Redirect old /explorer route to /live
   if (pathname === "/explorer" || pathname.startsWith("/explorer/")) {
     return NextResponse.redirect(new URL("/live", req.url));
   }
 
-  // Public routes - no auth needed
-  const publicRoutes = ["/", "/login", "/examples"];
-  const isPublicRoute = publicRoutes.includes(pathname);
-
-  // API routes for brain events (uses API key auth, not session)
-  if (pathname.startsWith("/api/brain-events") && !pathname.includes("/stream")) {
-    return NextResponse.next();
-  }
-
-  // Auth API routes
+  // Auth API routes — NextAuth handles its own security
   if (pathname.startsWith("/api/auth")) {
     return NextResponse.next();
   }
 
-  // Check for session token
-  const sessionToken =
-    req.cookies.get("authjs.session-token")?.value ||
-    req.cookies.get("__Secure-authjs.session-token")?.value;
+  // Brain events POST/GET — Molly pushes with API key, no session needed
+  if (pathname === "/api/brain-events") {
+    if (hasBearerKey(req)) return NextResponse.next();
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const isLoggedIn = !!sessionToken;
+  // SSE stream, WebSocket, models, assets — require valid session
+  if (
+    pathname === "/api/brain-events/stream" ||
+    pathname === "/api/ws" ||
+    pathname.startsWith("/api/models/") ||
+    pathname.startsWith("/api/assets/")
+  ) {
+    if (hasSessionToken(req)) return NextResponse.next();
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  // Protected routes require login
+  // Public pages — only login and root
+  const publicRoutes = ["/", "/login"];
+  const isPublicRoute = publicRoutes.includes(pathname);
+  const isLoggedIn = hasSessionToken(req);
+
   if (!isPublicRoute && !isLoggedIn) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect logged-in users away from login page
-  if (pathname === "/login" && isLoggedIn) {
+  if ((pathname === "/login" || pathname === "/") && isLoggedIn) {
     return NextResponse.redirect(new URL("/live", req.url));
   }
 
@@ -47,6 +67,6 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|models|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

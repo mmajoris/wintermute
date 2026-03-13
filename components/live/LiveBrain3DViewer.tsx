@@ -35,7 +35,7 @@ function useBrainGeometry(file: string): THREE.BufferGeometry | null {
     if (loadingSet.has(file)) return;
     loadingSet.add(file);
 
-    fetch(`/models/brain/${file}`)
+    fetch(`/api/models/brain/${file}`)
       .then((r) => r.json())
       .then((json) => {
         const geo = parseBrainModel(json);
