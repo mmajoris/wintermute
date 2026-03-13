@@ -6,6 +6,7 @@ import { BRAIN_MODEL_REGISTRY } from "@/lib/brain-model-loader";
 import { getCollectionsForRegion } from "@/lib/collection-mapping";
 import type { BrainEvent } from "@/lib/brain-events";
 import { BracketFrame, HudDivider, HudSectionTitle } from "./BracketFrame";
+import { RadialPanel, TracesPanel } from "./NeurotransmitterPanels";
 
 function formatTimestamp(ts: string): string {
   const date = new Date(ts);
@@ -238,9 +239,14 @@ export default function LiveProcessPanel() {
         </BracketFrame>
       )}
 
-      <BracketFrame variant="detail-5" className="pointer-events-auto flex-1 min-h-0 overflow-hidden">
+      <RadialPanel />
+      <TracesPanel />
+
+      <BracketFrame variant="detail-5" className="pointer-events-auto min-h-0 overflow-hidden flex-1"
+        style={{ maxHeight: 320 }}
+      >
         <div className="flex flex-col h-full">
-        <div className="p-3 shrink-0">
+        <div className="px-3 pt-2 pb-1 shrink-0">
           <HudSectionTitle>
             Event Stream
             {selectedRegionId && <span className="text-indigo-400 ml-1">(filtered)</span>}
@@ -248,17 +254,17 @@ export default function LiveProcessPanel() {
           <HudDivider />
         </div>
         <div ref={scrollRef} onScroll={handleScroll}
-          className="flex-1 overflow-y-auto p-2 space-y-0.5"
+          className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5"
           style={{ scrollbarWidth: "thin" }}
         >
           {filteredEvents.length === 0 ? (
-            <div className="text-center py-8 text-neutral-600 text-xs">
+            <div className="text-center py-4 text-neutral-600 text-xs">
               Waiting for events...
             </div>
           ) : (
             filteredEvents.map((envelope) => (
               <div key={envelope.id}
-                className="flex items-start gap-2 px-2 py-1 rounded hover:bg-white/3 transition-colors"
+                className="flex items-start gap-2 px-2 py-0.5 rounded hover:bg-white/3 transition-colors"
               >
                 <EventIcon type={envelope.event.type} />
                 <div className="flex-1 min-w-0">

@@ -190,13 +190,17 @@ function ConnectionHint() {
 
 function IsolateHideControls({
   isolatedId,
+  isHidden,
   onIsolate,
   onHide,
+  onUnhide,
   onClearIsolate,
 }: {
   isolatedId: string | null;
+  isHidden: boolean;
   onIsolate: () => void;
   onHide: () => void;
+  onUnhide: () => void;
   onClearIsolate: () => void;
 }) {
   return (
@@ -220,10 +224,17 @@ function IsolateHideControls({
                 className="px-3 py-1.5 text-[10px] font-medium text-indigo-400 hover:bg-indigo-500/10 transition-all">
                 Isolate
               </button>
-              <button onClick={onHide}
-                className="px-3 py-1.5 text-[10px] font-medium text-red-400 hover:bg-red-500/10 transition-all">
-                Hide
-              </button>
+              {isHidden ? (
+                <button onClick={onUnhide}
+                  className="px-3 py-1.5 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 transition-all">
+                  Unhide
+                </button>
+              ) : (
+                <button onClick={onHide}
+                  className="px-3 py-1.5 text-[10px] font-medium text-red-400 hover:bg-red-500/10 transition-all">
+                  Hide
+                </button>
+              )}
             </>
           )}
         </div>
@@ -381,12 +392,22 @@ export default function LiveBrainMonitor() {
             {selectedRegionId && (
               <IsolateHideControls
                 isolatedId={isolatedId}
+                isHidden={hiddenIds.has(selectedRegionId)}
                 onIsolate={() => selectedRegionId && setIsolatedId(selectedRegionId)}
                 onHide={() => {
                   if (selectedRegionId) {
                     setHiddenIds((prev) => new Set([...prev, selectedRegionId]));
                     setIsolatedId(null);
                     selectRegion(null);
+                  }
+                }}
+                onUnhide={() => {
+                  if (selectedRegionId) {
+                    setHiddenIds((prev) => {
+                      const next = new Set(prev);
+                      next.delete(selectedRegionId);
+                      return next;
+                    });
                   }
                 }}
                 onClearIsolate={() => setIsolatedId(null)}

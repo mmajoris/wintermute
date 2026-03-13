@@ -8,6 +8,27 @@ import { computationalModules } from "@/data/schema/modules";
 import { useHudColor } from "@/components/ui/hud-theme";
 import { BracketFrame, HudSectionTitle, HudDivider } from "./BracketFrame";
 
+const MODEL_TO_ANATOMY: Record<string, string> = {
+  "left-hemisphere": "cerebrum",
+  "right-hemisphere": "cerebrum",
+  "medulla": "medulla-oblongata",
+  "auditory-cortex": "primary-auditory-cortex",
+  "olfactory-bulb": "cn-i-olfactory",
+  "globus-pallidus": "globus-pallidus-external",
+  "cn-i": "cn-i-olfactory",
+  "cn-ii": "cn-ii-optic",
+  "cn-iii": "cn-iii-oculomotor",
+  "cn-iv": "cn-iv-trochlear",
+  "cn-v": "cn-v-trigeminal",
+  "cn-vi": "cn-vi-abducens",
+  "cn-vii": "cn-vii-facial",
+  "cn-viii": "cn-viii-vestibulocochlear",
+  "cn-ix": "cn-ix-glossopharyngeal",
+  "cn-x": "cn-x-vagus",
+  "cn-xi": "cn-xi-accessory",
+  "cn-xii": "cn-xii-hypoglossal",
+};
+
 const BIO_TO_MODULE: Record<string, string> = {
   "frontal-lobe": "executive-controller",
   "prefrontal-cortex": "executive-controller",
@@ -25,6 +46,8 @@ const BIO_TO_MODULE: Record<string, string> = {
   "midbrain": "alertness-controller",
   "pons": "alertness-controller",
   "medulla": "autonomic-manager",
+  "medulla-oblongata": "autonomic-manager",
+  "cerebrum": "executive-controller",
   "entorhinal-cortex": "memory-retrieval",
   "dentate-gyrus": "memory-writer",
   "subiculum": "memory-retrieval",
@@ -41,12 +64,16 @@ export default function AtlasDrawer({ open, onClose }: { open: boolean; onClose:
   const c = useHudColor();
   const { selectedRegionId } = useLiveStore();
 
+  const anatomyId = selectedRegionId
+    ? MODEL_TO_ANATOMY[selectedRegionId] ?? selectedRegionId
+    : null;
+
   const node = useMemo(
-    () => (selectedRegionId ? findNodeById(selectedRegionId) : undefined),
-    [selectedRegionId],
+    () => (anatomyId ? findNodeById(anatomyId) : undefined),
+    [anatomyId],
   );
 
-  const moduleId = selectedRegionId ? BIO_TO_MODULE[selectedRegionId] : undefined;
+  const moduleId = selectedRegionId ? (BIO_TO_MODULE[selectedRegionId] ?? (anatomyId ? BIO_TO_MODULE[anatomyId] : undefined)) : undefined;
   const compModule = moduleId ? computationalModules.find((m) => m.id === moduleId) : undefined;
 
   const color = node ? (CATEGORY_COLORS[node.category] ?? "#6366f1") : "#6366f1";
