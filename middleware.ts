@@ -4,6 +4,11 @@ import type { NextRequest } from "next/server";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Redirect old /explorer route to /live
+  if (pathname === "/explorer" || pathname.startsWith("/explorer/")) {
+    return NextResponse.redirect(new URL("/live", req.url));
+  }
+
   // Public routes - no auth needed
   const publicRoutes = ["/", "/login", "/examples"];
   const isPublicRoute = publicRoutes.includes(pathname);
@@ -34,7 +39,7 @@ export function middleware(req: NextRequest) {
 
   // Redirect logged-in users away from login page
   if (pathname === "/login" && isLoggedIn) {
-    return NextResponse.redirect(new URL("/explorer", req.url));
+    return NextResponse.redirect(new URL("/live", req.url));
   }
 
   return NextResponse.next();

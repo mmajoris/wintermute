@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useLiveStore } from "@/lib/live-store";
 import { NEUROTRANSMITTER_PATHWAYS } from "@/lib/collection-mapping";
 import { BRAIN_MODEL_REGISTRY } from "@/lib/brain-model-loader";
-import { BracketFrame, HudDivider, HudSectionTitle } from "./BracketFrame";
+import { BracketFrame, HudSectionTitle } from "./BracketFrame";
 import LiveStatsPanel from "./LiveStatsPanel";
+import NeuralActivityRenderer from "@/components/examples/NeuralActivityRenderer";
 
 const NT_NAMES = Object.keys(NEUROTRANSMITTER_PATHWAYS);
 const HISTORY_LENGTH = 80;
@@ -188,8 +189,7 @@ function CognitiveProcesses() {
   const { activeProcesses, lastThalamicGate, lastCascade } = useLiveStore();
 
   return (
-    <div className="mt-3 pt-1">
-      <HudDivider />
+    <>
       <HudSectionTitle>Cognitive State</HudSectionTitle>
       <div className="mt-2 space-y-1.5">
         {activeProcesses.length === 0 && !lastThalamicGate && !lastCascade && (
@@ -223,7 +223,7 @@ function CognitiveProcesses() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -238,10 +238,9 @@ function ActiveRegions() {
   const { regionActivity, selectRegion } = useLiveStore();
 
   return (
-    <div className="mt-3 pt-1">
-      <HudDivider />
+    <div className="flex flex-col h-full min-h-0">
       <HudSectionTitle>Neural Regions</HudSectionTitle>
-      <div className="mt-2 space-y-0.5">
+      <div className="mt-2 flex-1 min-h-0 overflow-y-auto hud-scrollbar space-y-0.5">
         {MONITORED_REGIONS.map((regionId) => {
           const region = BRAIN_MODEL_REGISTRY.find(r => r.id === regionId);
           if (!region) return null;
@@ -456,24 +455,44 @@ function SynapticRadial() {
 }
 
 export default function LiveLeftPanel() {
+  const subscribeFire = useCallback((fire: () => void) => {
+    let prev = useLiveStore.getState().totalEventCount;
+    return useLiveStore.subscribe((state) => {
+      const curr = state.totalEventCount;
+      if (curr !== prev) {
+        const diff = curr - prev;
+        prev = curr;
+        for (let i = 0; i < diff; i++) fire();
+      }
+    });
+  }, []);
+
   return (
-    <>
+    <div className="flex flex-col gap-3 h-full min-h-0">
       <LiveStatsPanel />
-      <BracketFrame variant="detail-3" className="p-4 overflow-hidden">
+      <BracketFrame variant="detail-3" className="px-4 py-4 overflow-hidden shrink-0 flex flex-col" style={{ height: 220 }}>
         <HudSectionTitle>Synaptic Activity</HudSectionTitle>
-        <SynapticRadial />
-        <div className="mt-1 space-y-1.5">
-          {NT_NAMES.map((name) => (
-            <NeuralTrace key={name} name={name} width={170} height={24} />
-          ))}
+        <div className="relative -mx-4 flex-1 flex items-center justify-center">
+          <NeuralActivityRenderer onSubscribe={subscribeFire} />
         </div>
       </BracketFrame>
-      <BracketFrame variant="notched" className="p-4 overflow-hidden shrink-0">
+      <BracketFrame variant="notched" className="p-4 overflow-hidden flex-1 min-h-32 flex flex-col">
+        <HudSectionTitle>Neurotransmitter Levels</HudSectionTitle>
+        <div className="mt-2 flex-1 min-h-0 overflow-y-auto hud-scrollbar">
+          <SynapticRadial />
+          <div className="mt-1 space-y-1.5">
+            {NT_NAMES.map((name) => (
+              <NeuralTrace key={name} name={name} width={170} height={24} />
+            ))}
+          </div>
+        </div>
+      </BracketFrame>
+      <BracketFrame variant="detail-3" className="p-4 overflow-hidden shrink-0 flex flex-col">
         <CognitiveProcesses />
       </BracketFrame>
-      <BracketFrame variant="combo-d" className="p-4 overflow-hidden shrink-0">
+      <BracketFrame variant="combo-d" className="p-4 overflow-hidden flex-1 min-h-32 flex flex-col">
         <ActiveRegions />
       </BracketFrame>
-    </>
+    </div>
   );
 }

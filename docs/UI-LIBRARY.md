@@ -1,11 +1,12 @@
-# HUD Frame UI Library
+# HUD UI Library
 
-Sci-fi panel frames for the Wintermute brain visualization. 20 variants, global theming via React context, brightness + color control.
+Sci-fi panel frames and data visualization components for the Wintermute brain visualization. 20 frame variants, bar charts, global theming via React context, brightness + color control.
 
 ## Quick Start
 
 ```tsx
 import HudFrame from "@/components/ui/HudFrame";
+import HudBarChart from "@/components/ui/HudBarChart";
 import { HudThemeProvider } from "@/components/ui/hud-theme";
 
 // Wrap your app (or page) in the theme provider
@@ -21,6 +22,7 @@ import { HudThemeProvider } from "@/components/ui/hud-theme";
 | File | Purpose |
 |------|---------|
 | `components/ui/HudFrame.tsx` | Main frame component with all 20 variants |
+| `components/ui/HudBarChart.tsx` | Horizontal bar chart component |
 | `components/ui/hud-theme.tsx` | Theme context, provider, and `useHudColor` hook |
 | `components/live/BracketFrame.tsx` | Thin wrapper (legacy compat) + `HudDivider` + `HudSectionTitle` |
 | `app/examples/page.tsx` | Live preview of all variants with brightness/hue sliders |
@@ -134,6 +136,45 @@ Each frame variant is a pure SVG render function: `(width, height, colorFn) => J
 
 This approach means chamfers are always the same pixel size regardless of box dimensions (unlike the old SVG viewBox scaling approach that distorted corners).
 
+## HudBarChart
+
+Horizontal bar chart component with sci-fi HUD styling.
+
+### Usage
+
+```tsx
+import HudBarChart, { BarData } from "@/components/ui/HudBarChart";
+
+const data: BarData[] = [
+  { label: "CPU Load", value: 78 },
+  { label: "Memory", value: 64 },
+  { label: "Network", value: 45 },
+];
+
+<HudBarChart
+  data={data}
+  showValues
+  barHeight={14}
+  barGap={8}
+  showGridLines
+  gridLineCount={5}
+/>
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `data` | `BarData[]` | — | Array of `{ label, value, maxValue? }` objects |
+| `showValues` | `boolean` | `false` | Display numeric values on bars |
+| `showAxis` | `boolean` | `true` | Show axis tick marks on right edge |
+| `showGridLines` | `boolean` | `false` | Show vertical dotted grid lines |
+| `gridLineCount` | `number` | `4` | Number of grid lines when enabled |
+| `barHeight` | `number` | `12` | Height of each bar in pixels |
+| `barGap` | `number` | `6` | Gap between bars in pixels |
+| `animated` | `boolean` | `true` | Animate bar width on mount/update |
+| `className` | `string` | `""` | Additional CSS classes |
+
 ## Examples Page
 
-Visit `/examples` to see all 20 variants side by side with live brightness and hue sliders.
+Visit `/examples` to see all 20 frame variants and bar chart examples side by side with live brightness and hue sliders.

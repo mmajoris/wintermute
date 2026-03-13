@@ -71,7 +71,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
       const isOnProtectedRoute =
-        request.nextUrl.pathname.startsWith("/explorer") ||
         request.nextUrl.pathname.startsWith("/live") ||
         request.nextUrl.pathname.startsWith("/api/brain-events/stream");
 

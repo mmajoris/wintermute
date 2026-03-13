@@ -38,20 +38,12 @@ export default async function LandingPage() {
 
         <div className="flex items-center gap-4">
           {isLoggedIn ? (
-            <>
-              <Link
-                href="/explorer"
-                className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              >
-                Explorer
-              </Link>
-              <Link
-                href="/live"
-                className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
-              >
-                Live View
-              </Link>
-            </>
+            <Link
+              href="/live"
+              className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
+            >
+              Live View
+            </Link>
           ) : (
             <Link
               href="/login"
@@ -96,37 +88,29 @@ export default async function LandingPage() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             {isLoggedIn ? (
-              <>
-                <Link
-                  href="/explorer"
-                  className="group px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-medium transition-all duration-200 flex items-center gap-3"
+              <Link
+                href="/live"
+                className="group px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-medium transition-all duration-200 flex items-center gap-3"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Enter Live View</span>
+                <svg
+                  className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
-                  <span>Open Explorer</span>
-                  <svg
-                    className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 7l5 5m0 0l-5 5m5-5H6"
-                    />
-                  </svg>
-                </Link>
-                <Link
-                  href="/live"
-                  className="px-8 py-4 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-xl font-medium transition-all duration-200 flex items-center gap-3"
-                >
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span>Live View</span>
-                </Link>
-              </>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </Link>
             ) : (
               <Link
                 href="/login"

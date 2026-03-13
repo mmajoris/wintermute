@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { HudThemeProvider } from "@/components/ui/hud-theme";
 
 const FrameExamples = dynamic(() => import("@/components/examples/FrameExamples"), { ssr: false });
-const DataDisplayExamples = dynamic(() => import("@/components/examples/DataDisplayExamples"), { ssr: false });
+const BarChartExamples = dynamic(() => import("@/components/examples/BarChartExamples"), { ssr: false });
+const HudComponentExamples = dynamic(() => import("@/components/examples/HudComponentExamples"), { ssr: false });
 
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   const c = (1 - Math.abs(2 * l - 1)) * s;
@@ -21,7 +22,7 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 }
 
-const TABS = ["Frames", "Data Display"] as const;
+const TABS = ["Frames", "Bar Charts", "HUD Components"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function ExamplesPage() {
@@ -36,7 +37,7 @@ export default function ExamplesPage() {
 
   return (
     <HudThemeProvider r={rgb[0]} g={rgb[1]} b={rgb[2]} brightness={brightness}>
-      <div className="min-h-screen w-full" style={{ background: "#030406" }}>
+      <div className="min-h-screen w-full overflow-auto" style={{ background: "#030406", height: "100vh" }}>
         <div className="sticky top-0 z-50 px-10 pt-8 pb-6" style={{ background: "linear-gradient(to bottom, #030406 70%, transparent)" }}>
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-1">
@@ -91,7 +92,8 @@ export default function ExamplesPage() {
 
         <div className="px-10 pb-10">
           {activeTab === "Frames" && <FrameExamples />}
-          {activeTab === "Data Display" && <DataDisplayExamples />}
+          {activeTab === "Bar Charts" && <BarChartExamples />}
+          {activeTab === "HUD Components" && <HudComponentExamples />}
         </div>
       </div>
     </HudThemeProvider>

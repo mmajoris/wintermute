@@ -486,6 +486,39 @@ export function getPathwaysForEvent(
       }
       return specs;
     }
+    case "neurochemistry_state": {
+      const neuroSpecs: PathwayActivationSpec[] = [];
+      const src = eventData && (eventData as { source_region?: string }).source_region;
+      const cortisol = eventData && typeof (eventData as { cortisol?: number }).cortisol === "number"
+        ? (eventData as { cortisol: number }).cortisol : 0;
+      const oxytocin = eventData && typeof (eventData as { oxytocin?: number }).oxytocin === "number"
+        ? (eventData as { oxytocin: number }).oxytocin : 0;
+
+      if (src === "locus_coeruleus") {
+        neuroSpecs.push({ pathway: "norepinephrine", intensity: 0.8 });
+      } else if (src === "dorsal_raphe_median_raphe") {
+        neuroSpecs.push({ pathway: "serotonin", intensity: 0.8 });
+      } else if (src === "basal_forebrain") {
+        neuroSpecs.push({ pathway: "acetylcholine", intensity: 0.8 });
+      } else {
+        neuroSpecs.push(
+          { pathway: "serotonin", intensity: 0.4 },
+          { pathway: "norepinephrine", intensity: 0.3 },
+        );
+      }
+      if (cortisol > 0.5) {
+        neuroSpecs.push({ pathway: "norepinephrine", intensity: Math.min(1, cortisol) });
+      }
+      if (oxytocin > 0.5) {
+        neuroSpecs.push({ pathway: "serotonin", intensity: 0.5 });
+      }
+      return neuroSpecs;
+    }
+    case "budget_status":
+      return [
+        { pathway: "norepinephrine", intensity: 0.2 },
+        { pathway: "dopamine", intensity: 0.2 },
+      ];
     default:
       return [];
   }

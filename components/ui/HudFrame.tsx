@@ -329,6 +329,8 @@ export default function HudFrame({
   const ready = w > 0 && h > 0;
   const v = VARIANTS[variant] ?? VARIANTS.chamfered;
 
+  const isFlex = className.includes("flex");
+
   return (
     <div
       ref={ref}
@@ -344,9 +346,10 @@ export default function HudFrame({
           WebkitBackdropFilter: "blur(12px)",
         }}
       />
+      <div className={`relative z-10 ${isFlex ? "flex flex-col h-full min-h-0" : ""}`}>{children}</div>
       {ready && (
         <svg
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 pointer-events-none z-20"
           width={w}
           height={h}
           viewBox={`0 0 ${w} ${h}`}
@@ -354,7 +357,6 @@ export default function HudFrame({
           {v.render(w, h, c)}
         </svg>
       )}
-      <div className="relative z-10">{children}</div>
     </div>
   );
 }

@@ -16,6 +16,9 @@ import NeuralSparks from "./NeuralSparks";
 import LiveTopBar from "./LiveTopBar";
 import LiveProcessPanel from "./LiveProcessPanel";
 import LiveLeftPanel from "./LiveLeftPanel";
+import AtlasDrawer from "./AtlasDrawer";
+import ArchitectureSheet from "./ArchitectureSheet";
+import LiveSearchOverlay from "./LiveSearchOverlay";
 import { BracketFrame } from "./BracketFrame";
 import { HudThemeProvider } from "@/components/ui/hud-theme";
 import { useEventStream } from "./useEventStream";
@@ -185,8 +188,52 @@ function ConnectionHint() {
   );
 }
 
+function IsolateHideControls({
+  isolatedId,
+  onIsolate,
+  onHide,
+  onClearIsolate,
+}: {
+  isolatedId: string | null;
+  onIsolate: () => void;
+  onHide: () => void;
+  onClearIsolate: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      className="absolute bottom-24 left-4 z-20"
+    >
+      <BracketFrame variant="stepped" className="p-2">
+        <div className="flex flex-col gap-1">
+          {isolatedId ? (
+            <button onClick={onClearIsolate}
+              className="px-3 py-1.5 text-[10px] font-medium transition-all"
+              style={{ color: "rgba(0, 200, 220, 0.85)", background: "rgba(0, 200, 220, 0.06)" }}>
+              Exit Isolate
+            </button>
+          ) : (
+            <>
+              <button onClick={onIsolate}
+                className="px-3 py-1.5 text-[10px] font-medium text-indigo-400 hover:bg-indigo-500/10 transition-all">
+                Isolate
+              </button>
+              <button onClick={onHide}
+                className="px-3 py-1.5 text-[10px] font-medium text-red-400 hover:bg-red-500/10 transition-all">
+                Hide
+              </button>
+            </>
+          )}
+        </div>
+      </BracketFrame>
+    </motion.div>
+  );
+}
+
 export default function LiveBrainMonitor() {
-  const { selectRegion, decayActivity } = useLiveStore();
+  const { selectRegion, selectedRegionId, decayActivity } = useLiveStore();
 
   const [activeLayers, setActiveLayers] = useState<Set<LayerKey>>(
     new Set<LayerKey>([
@@ -200,9 +247,29 @@ export default function LiveBrainMonitor() {
     ])
   );
   const [panelOpen, setPanelOpen] = useState(true);
+  const [atlasOpen, setAtlasOpen] = useState(false);
+  const [architectureOpen, setArchitectureOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [isolatedId, setIsolatedId] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [hudBrightness, setHudBrightness] = useState(1);
 
   useEventStream();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedRegionId) setIsolatedId(null);
+  }, [selectedRegionId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -212,14 +279,15 @@ export default function LiveBrainMonitor() {
   }, [decayActivity]);
 
   const visibleIds = useMemo(() => {
+    if (isolatedId) return new Set([isolatedId]);
     const ids = new Set<string>();
     for (const key of activeLayers) {
       for (const id of LAYER_GROUPS[key]) {
-        ids.add(id);
+        if (!hiddenIds.has(id)) ids.add(id);
       }
     }
     return ids;
-  }, [activeLayers]);
+  }, [activeLayers, hiddenIds, isolatedId]);
 
   const toggleLayer = useCallback((key: LayerKey) => {
     setActiveLayers((prev) => {
@@ -228,10 +296,13 @@ export default function LiveBrainMonitor() {
       else next.add(key);
       return next;
     });
+    setIsolatedId(null);
   }, []);
 
   const showAll = useCallback(() => {
     setActiveLayers(new Set(Object.keys(LAYER_GROUPS) as LayerKey[]));
+    setHiddenIds(new Set());
+    setIsolatedId(null);
   }, []);
 
   return (
@@ -246,11 +317,19 @@ export default function LiveBrainMonitor() {
     >
       {/* Row 1: Top bar */}
       <div className="col-span-3 w-full px-4 pt-4">
-        <LiveTopBar panelOpen={panelOpen} onTogglePanel={() => setPanelOpen((v) => !v)} />
+        <LiveTopBar
+          panelOpen={panelOpen}
+          onTogglePanel={() => setPanelOpen((v) => !v)}
+          atlasOpen={atlasOpen}
+          onToggleAtlas={() => setAtlasOpen((v) => !v)}
+          architectureOpen={architectureOpen}
+          onToggleArchitecture={() => setArchitectureOpen((v) => !v)}
+          onOpenSearch={() => setSearchOpen(true)}
+        />
       </div>
 
       {/* Row 2: Left column */}
-      <div className="overflow-y-auto min-h-0 flex flex-col gap-3 p-4">
+      <div className="min-h-0 flex flex-col p-4 overflow-hidden">
         <LiveLeftPanel />
       </div>
 
@@ -262,7 +341,10 @@ export default function LiveBrainMonitor() {
             gl={{ antialias: true, alpha: true }}
             dpr={[1, 2]}
             className="w-full h-full"
-            onPointerMissed={() => selectRegion(null)}
+            onPointerMissed={() => {
+              selectRegion(null);
+              setIsolatedId(null);
+            }}
           >
           <color attach="background" args={["#030406"]} />
           <fog attach="fog" args={["#030406", 40, 80]} />
@@ -293,6 +375,24 @@ export default function LiveBrainMonitor() {
           <AnimatePresence>
             <ConnectionHint />
           </AnimatePresence>
+
+          {/* Isolate/Hide controls */}
+          <AnimatePresence>
+            {selectedRegionId && (
+              <IsolateHideControls
+                isolatedId={isolatedId}
+                onIsolate={() => selectedRegionId && setIsolatedId(selectedRegionId)}
+                onHide={() => {
+                  if (selectedRegionId) {
+                    setHiddenIds((prev) => new Set([...prev, selectedRegionId]));
+                    setIsolatedId(null);
+                    selectRegion(null);
+                  }
+                }}
+                onClearIsolate={() => setIsolatedId(null)}
+              />
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Layer toggles below the canvas */}
@@ -303,11 +403,38 @@ export default function LiveBrainMonitor() {
             onShowAll={showAll}
           />
         </div>
+
+        {/* Architecture bottom sheet */}
+        <ArchitectureSheet open={architectureOpen} onClose={() => setArchitectureOpen(false)} />
       </div>
 
       {/* Row 2: Right column */}
-      <div className="overflow-y-auto min-h-0 flex flex-col gap-3 p-4">
-        <AnimatePresence>{panelOpen && <LiveProcessPanel />}</AnimatePresence>
+      <div className="min-h-0 flex flex-col overflow-hidden">
+        <AnimatePresence mode="wait">
+          {atlasOpen ? (
+            <motion.div
+              key="atlas"
+              initial={{ x: 40, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 40, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 40 }}
+              className="flex-1 min-h-0 flex flex-col"
+            >
+              <AtlasDrawer open onClose={() => setAtlasOpen(false)} />
+            </motion.div>
+          ) : panelOpen ? (
+            <motion.div
+              key="processes"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex-1 min-h-0 flex flex-col gap-3 p-4"
+            >
+              <LiveProcessPanel />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
 
       {/* Row 3: Bottom control bar */}
@@ -315,6 +442,9 @@ export default function LiveBrainMonitor() {
         <ControlBar brightness={hudBrightness} onBrightnessChange={setHudBrightness} />
       </div>
     </div>
+
+    {/* Search overlay */}
+    {searchOpen && <LiveSearchOverlay onClose={() => setSearchOpen(false)} />}
     </HudThemeProvider>
   );
 }

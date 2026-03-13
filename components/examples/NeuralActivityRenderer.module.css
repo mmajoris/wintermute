@@ -1,16 +1,22 @@
 .container {
   position: relative;
-  width: 300px;
-  height: 200px;
+  width: 100%;
+  aspect-ratio: 3 / 2;
   border-radius: 6px;
   overflow: hidden;
   background: #000;
+  perspective: 400px;
 }
 
 .layer {
   position: absolute;
   inset: -20px;
   pointer-events: none;
+}
+
+.sway {
+  animation: sway 22s ease-in-out infinite;
+  transform-origin: center center;
 }
 
 .img {
@@ -29,11 +35,11 @@
 }
 
 .drift {
-  animation: drift 45s ease-in-out infinite;
+  animation: drift 30s ease-in-out infinite;
 }
 
 .breathe {
-  animation: breathe 15s ease-in-out infinite;
+  animation: breathe 10s ease-in-out infinite;
 }
 
 .vignette {
@@ -48,13 +54,13 @@
     transform: translate(0px, 0px) scale(1.06) rotate(0deg);
   }
   25% {
-    transform: translate(4px, -3px) scale(1.08) rotate(0.3deg);
+    transform: translate(3px, -2px) scale(1.08) rotate(0.2deg);
   }
   50% {
-    transform: translate(-2px, 4px) scale(1.05) rotate(-0.2deg);
+    transform: translate(-2px, 3px) scale(1.05) rotate(-0.15deg);
   }
   75% {
-    transform: translate(3px, 2px) scale(1.09) rotate(0.15deg);
+    transform: translate(2px, 1px) scale(1.07) rotate(0.1deg);
   }
   100% {
     transform: translate(0px, 0px) scale(1.06) rotate(0deg);
@@ -67,11 +73,38 @@
     transform: scale(1.04);
   }
   50% {
-    opacity: 0.25;
-    transform: scale(1.1);
+    opacity: 0.22;
+    transform: scale(1.08);
   }
   100% {
     opacity: 0.1;
     transform: scale(1.04);
+  }
+}
+
+@keyframes sway {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg) scale(1.06);
+  }
+  12% {
+    transform: rotateX(4deg) rotateY(-2.5deg) scale(1.07);
+  }
+  28% {
+    transform: rotateX(-2deg) rotateY(4.5deg) scale(1.05);
+  }
+  45% {
+    transform: rotateX(3.5deg) rotateY(1.5deg) scale(1.08);
+  }
+  62% {
+    transform: rotateX(-3.5deg) rotateY(-4deg) scale(1.06);
+  }
+  78% {
+    transform: rotateX(2deg) rotateY(3deg) scale(1.07);
+  }
+  90% {
+    transform: rotateX(-1deg) rotateY(-1.5deg) scale(1.06);
+  }
+  100% {
+    transform: rotateX(0deg) rotateY(0deg) scale(1.06);
   }
 }

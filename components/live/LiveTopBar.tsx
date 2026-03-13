@@ -3,12 +3,50 @@
 import { useLiveStore } from "@/lib/live-store";
 import { BracketFrame } from "./BracketFrame";
 
+function TopBarToggle({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-2.5 py-1 text-[10px] font-medium transition-all duration-200 border rounded"
+      style={active ? {
+        background: "rgba(0, 200, 220, 0.06)",
+        color: "rgba(0, 200, 220, 0.85)",
+        borderColor: "rgba(0, 200, 220, 0.2)",
+      } : {
+        background: "transparent",
+        color: "rgba(163, 163, 163, 0.6)",
+        borderColor: "rgba(255, 255, 255, 0.06)",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function LiveTopBar({
   panelOpen,
   onTogglePanel,
+  atlasOpen,
+  onToggleAtlas,
+  architectureOpen,
+  onToggleArchitecture,
+  onOpenSearch,
 }: {
   panelOpen: boolean;
   onTogglePanel: () => void;
+  atlasOpen: boolean;
+  onToggleAtlas: () => void;
+  architectureOpen: boolean;
+  onToggleArchitecture: () => void;
+  onOpenSearch: () => void;
 }) {
   const { connected, eventsPerSecond, emotionalState, lastThoughtTick } =
     useLiveStore();
@@ -68,25 +106,24 @@ export default function LiveTopBar({
         )}
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <span className="text-[10px] text-neutral-500 uppercase tracking-wide">
           {connected ? "ONLINE" : "OFFLINE"}
         </span>
+        <div className="w-px h-3.5 bg-white/8" />
         <button
-          onClick={onTogglePanel}
-          className="px-2.5 py-1 text-[10px] font-medium transition-all duration-200 border rounded"
-          style={panelOpen ? {
-            background: "rgba(0, 200, 220, 0.06)",
-            color: "rgba(0, 200, 220, 0.85)",
-            borderColor: "rgba(0, 200, 220, 0.2)",
-          } : {
-            background: "transparent",
-            color: "rgba(163, 163, 163, 0.6)",
-            borderColor: "rgba(255, 255, 255, 0.06)",
-          }}
+          onClick={onOpenSearch}
+          className="px-2 py-1 text-[10px] text-neutral-500 hover:text-neutral-300 transition-colors flex items-center gap-1.5"
         >
-          Processes
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <kbd className="text-[8px] px-1 py-px bg-white/4 border border-white/6 text-neutral-600">⌘K</kbd>
         </button>
+        <div className="w-px h-3.5 bg-white/8" />
+        <TopBarToggle label="Atlas" active={atlasOpen} onClick={onToggleAtlas} />
+        <TopBarToggle label="Architecture" active={architectureOpen} onClick={onToggleArchitecture} />
+        <TopBarToggle label="Processes" active={panelOpen} onClick={onTogglePanel} />
       </div>
       </div>
     </BracketFrame>

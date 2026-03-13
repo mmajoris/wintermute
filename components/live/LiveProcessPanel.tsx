@@ -39,6 +39,7 @@ function EventIcon({ type }: { type: BrainEvent["type"] }) {
     thalamic_gate: { icon: "⊙", color: "#f97316" },
     hippocampal_cascade: { icon: "◎", color: "#14b8a6" },
     llm_call: { icon: "⧫", color: "#60a5fa" },
+    neurochemistry_state: { icon: "⬡", color: "#34d399" },
   };
 
   const { icon, color } = icons[type] ?? { icon: "•", color: "#666" };

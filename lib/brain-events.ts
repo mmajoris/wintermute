@@ -50,6 +50,7 @@ export interface EmotionalStateEvent {
   arousal: number; // 0 to 1 (calm to excited)
   mood: string;
   dominant_emotion?: string;
+  source_structure?: "amygdala" | "anterior_insula" | "hypothalamus" | "anterior_cingulate";
 }
 
 export interface SoulCycleEvent {
@@ -77,6 +78,7 @@ export interface SystemVitalsEvent {
   disk_percent: number;
   uptime_seconds: number;
   heartbeat_ok: boolean;
+  source_region?: string;
 }
 
 export interface BudgetStatusEvent {
@@ -124,13 +126,17 @@ export interface ErrorCorrectionEvent {
 export interface ThalamicGateEvent {
   type: "thalamic_gate";
   timestamp: string;
+  gate_open: boolean;
+  signal_strength: number;
   signal_type?: string;
   signal_source?: string;
-  gate_open?: boolean;
+  /** @deprecated Use gate_open — kept for simulator backward compat */
   passed?: boolean;
-  signal_strength?: number;
   content?: string;
   filtered_reason?: string;
+  norepinephrine_tonic?: number;
+  norepinephrine_phasic?: number;
+  norepinephrine_mode?: NorepinephrineMode;
 }
 
 export interface HippocampalCascadeEvent {
@@ -148,9 +154,34 @@ export interface LLMCallEvent {
   timestamp: string;
   tier: string;
   purpose: string;
-  status: "started" | "completed";
+  status: "started" | "completed" | "failed";
   duration_ms?: number;
+  tokens_used?: number;
   model?: string;
+}
+
+export type NorepinephrineMode = "low_tonic" | "phasic_ready" | "high_tonic";
+
+export interface NeurochemistryStateEvent {
+  type: "neurochemistry_state";
+  timestamp: string;
+  oxytocin: number;
+  cortisol: number;
+  endorphin: number;
+  acetylcholine?: number;
+  serotonin?: number;
+  norepinephrine_tonic?: number;
+  norepinephrine_phasic?: number;
+  norepinephrine_mode?: NorepinephrineMode;
+  source_region:
+    | "paraventricular_nucleus"
+    | "hpa_axis"
+    | "periaqueductal_gray"
+    | "basal_forebrain"
+    | "dorsal_raphe_median_raphe"
+    | "locus_coeruleus"
+    | "multi_system"
+    | "distributed_neuromodulatory_systems";
 }
 
 export type BrainEvent =
@@ -168,7 +199,8 @@ export type BrainEvent =
   | ErrorCorrectionEvent
   | ThalamicGateEvent
   | HippocampalCascadeEvent
-  | LLMCallEvent;
+  | LLMCallEvent
+  | NeurochemistryStateEvent;
 
 export interface BrainEventEnvelope {
   id: string;
@@ -195,5 +227,6 @@ export function isBrainEvent(obj: unknown): obj is BrainEvent {
     "thalamic_gate",
     "hippocampal_cascade",
     "llm_call",
+    "neurochemistry_state",
   ].includes(event.type);
 }

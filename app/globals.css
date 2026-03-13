@@ -61,6 +61,33 @@ body {
   background: var(--color-text-muted);
 }
 
+.hud-scrollbar::-webkit-scrollbar {
+  width: 2px;
+}
+
+.hud-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hud-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 180, 220, 0.6);
+  border-radius: 2px;
+}
+
+.hud-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 180, 220, 0.9);
+  box-shadow: 0 0 6px rgba(0, 180, 220, 0.6);
+}
+
+.hud-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.hud-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 180, 220, 0.6) transparent;
+}
+
 @keyframes hud-scanline-move {
   0% { top: -2px; }
   100% { top: 100%; }

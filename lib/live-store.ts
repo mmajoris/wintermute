@@ -2,8 +2,13 @@ import { create } from "zustand";
 import type {
   BrainEvent,
   BrainEventEnvelope,
+  BudgetStatusEvent,
   EmotionalStateEvent,
+  HippocampalCascadeEvent,
+  LLMCallEvent,
+  NeurochemistryStateEvent,
   SystemVitalsEvent,
+  ThalamicGateEvent,
   ThoughtLoopTickEvent,
 } from "./brain-events";
 import {
@@ -12,7 +17,6 @@ import {
   getRegionForQueue,
   getPathwaysForEvent,
 } from "./collection-mapping";
-import type { HippocampalCascadeEvent, ThalamicGateEvent, LLMCallEvent } from "./brain-events";
 
 export interface RegionActivity {
   regionId: string;
@@ -56,7 +60,7 @@ export interface SpreadingActivation {
 
 export interface CognitiveProcess {
   name: string;
-  status: "active" | "completed";
+  status: "active" | "completed" | "failed";
   tier?: string;
   startedAt: number;
 }
@@ -65,6 +69,7 @@ export interface LiveStore {
   connected: boolean;
   connectionError: string | null;
   eventsPerSecond: number;
+  totalEventCount: number;
 
   recentEvents: BrainEventEnvelope[];
   maxRecentEvents: number;
@@ -82,6 +87,8 @@ export interface LiveStore {
   spreadingActivations: SpreadingActivation[];
   activeProcesses: CognitiveProcess[];
   dopamineLevel: number;
+  budgetStatus: BudgetStatusEvent | null;
+  neurochemistryState: NeurochemistryStateEvent | null;
   lastLLMCall: LLMCallEvent | null;
   lastThalamicGate: ThalamicGateEvent | null;
   lastCascade: HippocampalCascadeEvent | null;
@@ -113,6 +120,7 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   connected: false,
   connectionError: null,
   eventsPerSecond: 0,
+  totalEventCount: 0,
 
   recentEvents: [],
   maxRecentEvents: MAX_RECENT_EVENTS,
@@ -130,6 +138,8 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   spreadingActivations: [],
   activeProcesses: [],
   dopamineLevel: 0.5,
+  budgetStatus: null,
+  neurochemistryState: null,
   lastLLMCall: null,
   lastThalamicGate: null,
   lastCascade: null,
@@ -151,7 +161,7 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
       -state.maxRecentEvents
     );
 
-    const updates: Partial<LiveStore> = { recentEvents: newRecentEvents };
+    const updates: Partial<LiveStore> = { recentEvents: newRecentEvents, totalEventCount: state.totalEventCount + 1 };
     const newRegionActivity = new Map(state.regionActivity);
     const newActiveWorkers = new Map(state.activeWorkers);
     const newQueueStatus = new Map(state.queueStatus);
@@ -217,11 +227,19 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
         break;
       }
 
-      case "emotional_state":
+      case "emotional_state": {
         updates.emotionalState = event;
-        activateRegion(newRegionActivity, "amygdala", now, "emotion");
+        const SOURCE_STRUCTURE_TO_REGION: Record<string, string> = {
+          amygdala: "amygdala",
+          anterior_insula: "insular-cortex-L",
+          hypothalamus: "hypothalamus",
+          anterior_cingulate: "anterior-cingulate-L",
+        };
+        const emotionRegion = (event.source_structure && SOURCE_STRUCTURE_TO_REGION[event.source_structure]) || "amygdala";
+        activateRegion(newRegionActivity, emotionRegion, now, "emotion");
         activateRegion(newRegionActivity, "raphe-nuclei", now, "serotonin_source");
         break;
+      }
 
       case "system_vitals":
         updates.systemVitals = event;
@@ -293,17 +311,54 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
       }
 
       case "llm_call": {
-        updates.lastLLMCall = event as LLMCallEvent;
+        const llm = event as LLMCallEvent;
+        updates.lastLLMCall = llm;
+        const procStatus: CognitiveProcess["status"] =
+          llm.status === "started" ? "active" : llm.status === "failed" ? "failed" : "completed";
         const proc: CognitiveProcess = {
-          name: `LLM ${(event as LLMCallEvent).tier}`,
-          status: (event as LLMCallEvent).status === "started" ? "active" : "completed",
-          tier: (event as LLMCallEvent).tier,
+          name: `LLM ${llm.tier}`,
+          status: procStatus,
+          tier: llm.tier,
           startedAt: now,
         };
         const procs = state.activeProcesses.filter(p => p.name !== proc.name);
         if (proc.status === "active") procs.push(proc);
         updates.activeProcesses = procs;
         activateRegion(newRegionActivity, "left-hemisphere", now, "cortical_processing");
+        if (llm.status === "failed") {
+          activateRegion(newRegionActivity, "cerebellum", now, "llm_error");
+          activateRegion(newRegionActivity, "anterior-cingulate-L", now, "conflict_detection");
+        }
+        break;
+      }
+
+      case "budget_status": {
+        updates.budgetStatus = event as BudgetStatusEvent;
+        activateRegion(newRegionActivity, "hypothalamus", now, "resource_monitoring");
+        break;
+      }
+
+      case "neurochemistry_state": {
+        const neuro = event as NeurochemistryStateEvent;
+        updates.neurochemistryState = neuro;
+        const NEURO_SOURCE_TO_REGION: Record<string, string> = {
+          paraventricular_nucleus: "hypothalamus",
+          hpa_axis: "hypothalamus",
+          periaqueductal_gray: "midbrain",
+          basal_forebrain: "basal-forebrain",
+          dorsal_raphe_median_raphe: "raphe-nuclei",
+          locus_coeruleus: "locus-coeruleus",
+          multi_system: "hypothalamus",
+          distributed_neuromodulatory_systems: "hypothalamus",
+        };
+        const sourceRegion = NEURO_SOURCE_TO_REGION[neuro.source_region] ?? "hypothalamus";
+        activateRegion(newRegionActivity, sourceRegion, now, "neurochemistry");
+        if (neuro.cortisol > 0.7) {
+          activateRegion(newRegionActivity, "amygdala", now, "stress_response");
+        }
+        if (neuro.norepinephrine_mode === "high_tonic") {
+          activateRegion(newRegionActivity, "locus-coeruleus", now, "high_arousal");
+        }
         break;
       }
     }
