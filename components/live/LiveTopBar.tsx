@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { signOut } from "next-auth/react";
 import { useLiveStore } from "@/lib/live-store";
 import { BracketFrame } from "./BracketFrame";
@@ -29,6 +30,69 @@ function TopBarToggle({
     >
       {label}
     </button>
+  );
+}
+
+function MollyControls({ connected }: { connected: boolean }) {
+  const [sending, setSending] = useState(false);
+  const [vmStatus, setVmStatus] = useState<{ molly_active: string; docker: string; timestamp: string } | null>(null);
+
+  const pollVmStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/vm-status");
+      if (res.ok) {
+        const data = await res.json();
+        setVmStatus(data.status);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    pollVmStatus();
+    const interval = setInterval(pollVmStatus, 30000);
+    return () => clearInterval(interval);
+  }, [pollVmStatus]);
+
+  const sendCommand = async (command: "sleep" | "wake") => {
+    setSending(true);
+    try {
+      await fetch("/api/commands", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command }),
+      });
+    } catch { /* ignore */ }
+    setSending(false);
+  };
+
+  const mollyActive = vmStatus?.molly_active === "active";
+  const showSleep = connected || mollyActive;
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {showSleep ? (
+        <button
+          onClick={() => sendCommand("sleep")}
+          disabled={sending}
+          className="px-2 py-1 text-[10px] font-medium text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/8 border border-transparent hover:border-amber-500/20 rounded transition-all disabled:opacity-40"
+        >
+          Sleep
+        </button>
+      ) : (
+        <button
+          onClick={() => sendCommand("wake")}
+          disabled={sending}
+          className="px-2 py-1 text-[10px] font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/8 border border-transparent hover:border-emerald-500/20 rounded transition-all disabled:opacity-40"
+        >
+          Wake
+        </button>
+      )}
+      {vmStatus && (
+        <span className="text-[9px] font-mono text-neutral-600" title={`Docker: ${vmStatus.docker || "unknown"}`}>
+          VM:{vmStatus.molly_active}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -111,6 +175,8 @@ export default function LiveTopBar({
         <span className="text-[10px] text-neutral-500 uppercase tracking-wide">
           {connected ? "ONLINE" : "OFFLINE"}
         </span>
+        <div className="w-px h-3.5 bg-white/8" />
+        <MollyControls connected={connected} />
         <div className="w-px h-3.5 bg-white/8" />
         <button
           onClick={onOpenSearch}

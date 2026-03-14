@@ -30,9 +30,23 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Brain events POST/GET — Molly pushes with API key, no session needed
+  // Brain events POST/GET — Molly pushes with API key
   if (pathname === "/api/brain-events") {
     if (hasBearerKey(req)) return NextResponse.next();
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Commands — POST from UI (session), GET from watcher/Molly (API key)
+  if (pathname === "/api/commands" || pathname === "/api/commands/pending") {
+    if (req.method === "GET" && hasBearerKey(req)) return NextResponse.next();
+    if (req.method === "POST" && hasSessionToken(req)) return NextResponse.next();
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // VM status — POST from watcher (API key), GET from UI (session)
+  if (pathname === "/api/vm-status") {
+    if (req.method === "POST" && hasBearerKey(req)) return NextResponse.next();
+    if (req.method === "GET" && hasSessionToken(req)) return NextResponse.next();
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
