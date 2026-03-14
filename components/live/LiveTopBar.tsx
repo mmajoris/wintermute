@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { signOut } from "next-auth/react";
 import { useLiveStore } from "@/lib/live-store";
+import { useHudColor } from "@/components/ui/hud-theme";
+import HudFrame from "@/components/ui/HudFrame";
 import { BracketFrame } from "./BracketFrame";
 import CommandModal from "./CommandModal";
 import type { CommandType } from "@/lib/kv";
@@ -87,6 +89,100 @@ function useMollyState(): { state: MollyState; loading: boolean } {
   return { state, loading };
 }
 
+function ConfirmCommandModal({
+  command,
+  onConfirm,
+  onCancel,
+}: {
+  command: CommandType;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const c = useHudColor();
+  const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const label = command === "wake" ? "Wake" : "Sleep";
+  const accentColor = command === "wake" ? "#22c55e" : "#f59e0b";
+  const valid = input.toLowerCase().trim() === "confirm";
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-100 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
+      <HudFrame variant="detail-3" className="relative w-full max-w-sm mx-4 p-0">
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: accentColor,
+                boxShadow: `0 0 8px ${accentColor}80`,
+              }}
+            />
+            <span
+              className="text-[11px] font-medium tracking-[0.12em] uppercase"
+              style={{ color: c(0.8) }}
+            >
+              Confirm {label}
+            </span>
+          </div>
+          <p className="text-[12px] leading-relaxed mb-4" style={{ color: "rgba(200, 210, 220, 0.7)" }}>
+            Are you absolutely sure you want to initiate the <strong style={{ color: accentColor }}>{label}</strong> sequence?
+            Type <span className="font-mono" style={{ color: c(0.8) }}>confirm</span> in the box below and press Confirm to continue.
+          </p>
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && valid) onConfirm(); }}
+            placeholder="Type confirm..."
+            className="w-full px-3 py-2 text-[12px] font-mono bg-transparent rounded outline-none transition-colors"
+            style={{
+              border: `1px solid ${valid ? accentColor + "50" : c(0.12)}`,
+              color: "rgba(200, 210, 220, 0.9)",
+            }}
+          />
+        </div>
+        <div
+          className="flex items-center justify-end gap-2 px-5 py-3"
+          style={{ borderTop: `1px solid ${c(0.1)}` }}
+        >
+          <button
+            onClick={onCancel}
+            className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider rounded transition-all text-neutral-500 hover:text-neutral-300 border border-white/8 hover:border-white/15"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!valid}
+            className="px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{
+              background: valid ? accentColor + "18" : "transparent",
+              color: valid ? accentColor : "rgba(163, 163, 163, 0.4)",
+              border: `1px solid ${valid ? accentColor + "40" : "rgba(255,255,255,0.06)"}`,
+            }}
+          >
+            Confirm
+          </button>
+        </div>
+      </HudFrame>
+    </div>
+  );
+}
+
 function MollyControls({
   state,
   loading,
@@ -98,12 +194,6 @@ function MollyControls({
 }) {
   const [confirming, setConfirming] = useState<CommandType | null>(null);
 
-  useEffect(() => {
-    if (!confirming) return;
-    const timer = setTimeout(() => setConfirming(null), 4000);
-    return () => clearTimeout(timer);
-  }, [confirming]);
-
   if (loading) {
     return (
       <div className="flex items-center gap-1.5">
@@ -112,51 +202,33 @@ function MollyControls({
     );
   }
 
-  if (confirming) {
-    const isWake = confirming === "wake";
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-neutral-500">
-          {isWake ? "Wake?" : "Sleep?"}
-        </span>
-        <button
-          onClick={() => { setConfirming(null); onCommand(confirming); }}
-          className={`px-2 py-1 text-[10px] font-medium rounded transition-all border ${
-            isWake
-              ? "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
-              : "text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
-          }`}
-        >
-          Yes
-        </button>
-        <button
-          onClick={() => setConfirming(null)}
-          className="px-2 py-1 text-[10px] font-medium text-neutral-600 hover:text-neutral-400 transition-colors"
-        >
-          No
-        </button>
-      </div>
-    );
-  }
-
   const command: CommandType = state === "awake" ? "sleep" : "wake";
   const isWake = command === "wake";
 
   return (
-    <div className="flex items-center gap-1.5">
-      <button
-        onClick={() => setConfirming(command)}
-        className={`px-2 py-1 text-[10px] font-medium border border-transparent rounded transition-all ${
-          isWake
-            ? state === "unknown"
-              ? "text-neutral-500 hover:text-emerald-300 hover:bg-emerald-500/8 hover:border-emerald-500/20"
-              : "text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/8 hover:border-emerald-500/20"
-            : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/8 hover:border-amber-500/20"
-        }`}
-      >
-        {isWake ? "Wake" : "Sleep"}
-      </button>
-    </div>
+    <>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => setConfirming(command)}
+          className={`px-2 py-1 text-[10px] font-medium border border-transparent rounded transition-all ${
+            isWake
+              ? state === "unknown"
+                ? "text-neutral-500 hover:text-emerald-300 hover:bg-emerald-500/8 hover:border-emerald-500/20"
+                : "text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/8 hover:border-emerald-500/20"
+              : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/8 hover:border-amber-500/20"
+          }`}
+        >
+          {isWake ? "Wake" : "Sleep"}
+        </button>
+      </div>
+      {confirming && (
+        <ConfirmCommandModal
+          command={confirming}
+          onConfirm={() => { setConfirming(null); onCommand(confirming); }}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
+    </>
   );
 }
 
