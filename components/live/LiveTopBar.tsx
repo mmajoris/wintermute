@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { signOut } from "next-auth/react";
 import { useLiveStore } from "@/lib/live-store";
 import { BracketFrame } from "./BracketFrame";
@@ -33,11 +33,60 @@ function TopBarToggle({
   );
 }
 
-function MollyControls() {
-  const [sending, setSending] = useState(false);
-  const { eventsPerSecond, totalEventCount } = useLiveStore();
+type MollyState = "awake" | "asleep" | "unknown";
 
-  const isAwake = eventsPerSecond > 0 || totalEventCount > 0;
+const VM_POLL_INTERVAL_MS = 15_000;
+const STALE_THRESHOLD_MS = 90_000;
+
+interface VMStatusResponse {
+  status: {
+    molly_active: string;
+    docker: string;
+    timestamp: string;
+  } | null;
+}
+
+function useMollyState(): { state: MollyState; loading: boolean } {
+  const [vmStatus, setVmStatus] = useState<VMStatusResponse["status"]>(null);
+  const [loading, setLoading] = useState(true);
+  const eventsPerSecond = useLiveStore((s) => s.eventsPerSecond);
+
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch("/api/vm-status");
+      if (res.ok) {
+        const data: VMStatusResponse = await res.json();
+        setVmStatus(data.status);
+      }
+    } catch { /* network failure — keep last known state */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    poll();
+    const id = setInterval(poll, VM_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [poll]);
+
+  let state: MollyState = "unknown";
+
+  if (vmStatus) {
+    const age = Date.now() - new Date(vmStatus.timestamp).getTime();
+    if (age < STALE_THRESHOLD_MS) {
+      state = vmStatus.molly_active === "active" ? "awake" : "asleep";
+    }
+  }
+
+  // Fallback: if watcher status is stale/missing, infer from live event stream
+  if (state === "unknown" && eventsPerSecond > 0) {
+    state = "awake";
+  }
+
+  return { state, loading };
+}
+
+function MollyControls({ state, loading }: { state: MollyState; loading: boolean }) {
+  const [sending, setSending] = useState(false);
 
   const sendCommand = async (command: "sleep" | "wake") => {
     setSending(true);
@@ -51,9 +100,31 @@ function MollyControls() {
     setSending(false);
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-neutral-600 animate-pulse">...</span>
+      </div>
+    );
+  }
+
+  if (state === "unknown") {
+    return (
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => sendCommand("wake")}
+          disabled={sending}
+          className="px-2 py-1 text-[10px] font-medium text-neutral-500 hover:text-emerald-300 hover:bg-emerald-500/8 border border-transparent hover:border-emerald-500/20 rounded transition-all disabled:opacity-40"
+        >
+          Wake
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-1.5">
-      {isAwake ? (
+      {state === "awake" ? (
         <button
           onClick={() => sendCommand("sleep")}
           disabled={sending}
@@ -91,8 +162,9 @@ export default function LiveTopBar({
   onToggleArchitecture: () => void;
   onOpenSearch: () => void;
 }) {
-  const { connected, eventsPerSecond, emotionalState, lastThoughtTick } =
+  const { eventsPerSecond, emotionalState, lastThoughtTick } =
     useLiveStore();
+  const { state: mollyState, loading: mollyLoading } = useMollyState();
 
   const moodLabel = emotionalState?.mood ?? "Unknown";
   const moodValence = emotionalState?.valence ?? 0;
@@ -103,6 +175,13 @@ export default function LiveTopBar({
         ? "#ef4444"
         : "#f59e0b";
 
+  const dotColor = mollyState === "awake" ? "#22c55e"
+    : mollyState === "asleep" ? "#ef4444"
+    : "#f59e0b";
+  const statusLabel = mollyState === "awake" ? "ONLINE"
+    : mollyState === "asleep" ? "SLEEPING"
+    : "UNKNOWN";
+
   return (
     <BracketFrame variant="combo-e" className="w-full px-4 py-2.5">
       <div className="flex items-center justify-between gap-4">
@@ -110,10 +189,8 @@ export default function LiveTopBar({
         <div
           className="w-1.5 h-1.5 rounded-full transition-all duration-300"
           style={{
-            backgroundColor: eventsPerSecond > 0 ? "#22c55e" : "#ef4444",
-            boxShadow: eventsPerSecond > 0
-              ? "0 0 6px rgba(34, 197, 94, 0.5)"
-              : "0 0 6px rgba(239, 68, 68, 0.5)",
+            backgroundColor: dotColor,
+            boxShadow: `0 0 6px ${dotColor}80`,
           }}
         />
         <span className="text-[11px] font-medium tracking-[0.12em] uppercase"
@@ -151,10 +228,10 @@ export default function LiveTopBar({
 
       <div className="flex items-center gap-2 shrink-0">
         <span className="text-[10px] text-neutral-500 uppercase tracking-wide">
-          {eventsPerSecond > 0 ? "ONLINE" : "OFFLINE"}
+          {statusLabel}
         </span>
         <div className="w-px h-3.5 bg-white/8" />
-        <MollyControls />
+        <MollyControls state={mollyState} loading={mollyLoading} />
         <div className="w-px h-3.5 bg-white/8" />
         <button
           onClick={onOpenSearch}
