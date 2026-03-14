@@ -66,6 +66,13 @@ export default function CommandModal({
           if (data.lines.length > 0) {
             setLines((prev) => [...prev, ...data.lines]);
             sinceRef.current += data.lines.length;
+
+            const hasAwakeMarker = data.lines.some((l) => l.includes("MOLLY IS AWAKE"));
+            const hasSleepMarker = data.lines.some((l) => l.includes("Goodnight") || l.includes("Stopped molly.service"));
+            if (hasAwakeMarker || hasSleepMarker) {
+              setMeta({ command, status: "done", exit_code: 0 });
+              return;
+            }
           }
           if (data.meta) {
             setMeta(data.meta);
