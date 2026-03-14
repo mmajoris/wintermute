@@ -35,23 +35,27 @@ function TopBarToggle({
 
 function MollyControls({ connected }: { connected: boolean }) {
   const [sending, setSending] = useState(false);
-  const [vmStatus, setVmStatus] = useState<{ molly_active: string; docker: string; timestamp: string } | null>(null);
+  const [mollyActive, setMollyActive] = useState<boolean | null>(null);
 
   const pollVmStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/vm-status");
       if (res.ok) {
         const data = await res.json();
-        setVmStatus(data.status);
+        if (data.status) {
+          setMollyActive(data.status.molly_active === "active");
+        }
       }
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
     pollVmStatus();
-    const interval = setInterval(pollVmStatus, 30000);
+    const interval = setInterval(pollVmStatus, 15000);
     return () => clearInterval(interval);
   }, [pollVmStatus]);
+
+  const isAwake = mollyActive !== null ? mollyActive : connected;
 
   const sendCommand = async (command: "sleep" | "wake") => {
     setSending(true);
@@ -65,13 +69,9 @@ function MollyControls({ connected }: { connected: boolean }) {
     setSending(false);
   };
 
-  const mollyActive = vmStatus?.molly_active === "active";
-  const hasVmData = vmStatus !== null;
-  const showSleep = hasVmData ? mollyActive : connected;
-
   return (
     <div className="flex items-center gap-1.5">
-      {showSleep ? (
+      {isAwake ? (
         <button
           onClick={() => sendCommand("sleep")}
           disabled={sending}
@@ -87,11 +87,6 @@ function MollyControls({ connected }: { connected: boolean }) {
         >
           Wake
         </button>
-      )}
-      {vmStatus && (
-        <span className="text-[9px] font-mono text-neutral-600" title={`Docker: ${vmStatus.docker || "unknown"}`}>
-          VM:{vmStatus.molly_active}
-        </span>
       )}
     </div>
   );
