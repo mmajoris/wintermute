@@ -66,7 +66,8 @@ function MollyControls({ connected }: { connected: boolean }) {
   };
 
   const mollyActive = vmStatus?.molly_active === "active";
-  const showSleep = connected || mollyActive;
+  const hasVmData = vmStatus !== null;
+  const showSleep = hasVmData ? mollyActive : connected;
 
   return (
     <div className="flex items-center gap-1.5">
