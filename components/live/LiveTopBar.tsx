@@ -96,6 +96,14 @@ function MollyControls({
   loading: boolean;
   onCommand: (command: CommandType) => void;
 }) {
+  const [confirming, setConfirming] = useState<CommandType | null>(null);
+
+  useEffect(() => {
+    if (!confirming) return;
+    const timer = setTimeout(() => setConfirming(null), 4000);
+    return () => clearTimeout(timer);
+  }, [confirming]);
+
   if (loading) {
     return (
       <div className="flex items-center gap-1.5">
@@ -104,36 +112,50 @@ function MollyControls({
     );
   }
 
-  if (state === "unknown") {
+  if (confirming) {
+    const isWake = confirming === "wake";
     return (
       <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-neutral-500">
+          {isWake ? "Wake?" : "Sleep?"}
+        </span>
         <button
-          onClick={() => onCommand("wake")}
-          className="px-2 py-1 text-[10px] font-medium text-neutral-500 hover:text-emerald-300 hover:bg-emerald-500/8 border border-transparent hover:border-emerald-500/20 rounded transition-all"
+          onClick={() => { setConfirming(null); onCommand(confirming); }}
+          className={`px-2 py-1 text-[10px] font-medium rounded transition-all border ${
+            isWake
+              ? "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+              : "text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+          }`}
         >
-          Wake
+          Yes
+        </button>
+        <button
+          onClick={() => setConfirming(null)}
+          className="px-2 py-1 text-[10px] font-medium text-neutral-600 hover:text-neutral-400 transition-colors"
+        >
+          No
         </button>
       </div>
     );
   }
 
+  const command: CommandType = state === "awake" ? "sleep" : "wake";
+  const isWake = command === "wake";
+
   return (
     <div className="flex items-center gap-1.5">
-      {state === "awake" ? (
-        <button
-          onClick={() => onCommand("sleep")}
-          className="px-2 py-1 text-[10px] font-medium text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/8 border border-transparent hover:border-amber-500/20 rounded transition-all"
-        >
-          Sleep
-        </button>
-      ) : (
-        <button
-          onClick={() => onCommand("wake")}
-          className="px-2 py-1 text-[10px] font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/8 border border-transparent hover:border-emerald-500/20 rounded transition-all"
-        >
-          Wake
-        </button>
-      )}
+      <button
+        onClick={() => setConfirming(command)}
+        className={`px-2 py-1 text-[10px] font-medium border border-transparent rounded transition-all ${
+          isWake
+            ? state === "unknown"
+              ? "text-neutral-500 hover:text-emerald-300 hover:bg-emerald-500/8 hover:border-emerald-500/20"
+              : "text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/8 hover:border-emerald-500/20"
+            : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/8 hover:border-amber-500/20"
+        }`}
+      >
+        {isWake ? "Wake" : "Sleep"}
+      </button>
     </div>
   );
 }
