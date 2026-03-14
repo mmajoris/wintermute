@@ -3,7 +3,6 @@ import { isBrainEvent, type BrainEvent } from "@/lib/brain-events";
 import { getGlobalEventBuffer } from "@/lib/event-buffer";
 import { getWSClientManager } from "@/lib/ws-clients";
 import { broadcastToSSEClients, getSSEClientCount } from "@/lib/sse-clients";
-import { drainCommands } from "@/lib/kv";
 
 const BRAIN_API_KEY = process.env.BRAIN_API_KEY;
 
@@ -57,13 +56,10 @@ export async function POST(request: NextRequest) {
     broadcastToSSEClients(envelope);
   }
 
-  const pendingCommands = await drainCommands();
-
   return NextResponse.json({
     received: envelopes.length,
     buffer_size: buffer.size,
     connected_clients: wsManager.clientCount + getSSEClientCount(),
-    commands: pendingCommands,
   });
 }
 
