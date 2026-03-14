@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { useLiveStore } from "@/lib/live-store";
 import { BracketFrame } from "./BracketFrame";
@@ -33,29 +33,11 @@ function TopBarToggle({
   );
 }
 
-function MollyControls({ connected }: { connected: boolean }) {
+function MollyControls() {
   const [sending, setSending] = useState(false);
-  const [mollyActive, setMollyActive] = useState<boolean | null>(null);
+  const { eventsPerSecond, totalEventCount } = useLiveStore();
 
-  const pollVmStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/vm-status");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status) {
-          setMollyActive(data.status.molly_active === "active");
-        }
-      }
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    pollVmStatus();
-    const interval = setInterval(pollVmStatus, 15000);
-    return () => clearInterval(interval);
-  }, [pollVmStatus]);
-
-  const isAwake = mollyActive !== null ? mollyActive : connected;
+  const isAwake = eventsPerSecond > 0 || totalEventCount > 0;
 
   const sendCommand = async (command: "sleep" | "wake") => {
     setSending(true);
@@ -128,8 +110,8 @@ export default function LiveTopBar({
         <div
           className="w-1.5 h-1.5 rounded-full transition-all duration-300"
           style={{
-            backgroundColor: connected ? "#22c55e" : "#ef4444",
-            boxShadow: connected
+            backgroundColor: eventsPerSecond > 0 ? "#22c55e" : "#ef4444",
+            boxShadow: eventsPerSecond > 0
               ? "0 0 6px rgba(34, 197, 94, 0.5)"
               : "0 0 6px rgba(239, 68, 68, 0.5)",
           }}
@@ -169,10 +151,10 @@ export default function LiveTopBar({
 
       <div className="flex items-center gap-2 shrink-0">
         <span className="text-[10px] text-neutral-500 uppercase tracking-wide">
-          {connected ? "ONLINE" : "OFFLINE"}
+          {eventsPerSecond > 0 ? "ONLINE" : "OFFLINE"}
         </span>
         <div className="w-px h-3.5 bg-white/8" />
-        <MollyControls connected={connected} />
+        <MollyControls />
         <div className="w-px h-3.5 bg-white/8" />
         <button
           onClick={onOpenSearch}
