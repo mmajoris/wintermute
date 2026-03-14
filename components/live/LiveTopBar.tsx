@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { signOut } from "next-auth/react";
 import { useLiveStore } from "@/lib/live-store";
 import { BracketFrame } from "./BracketFrame";
+import CommandModal from "./CommandModal";
+import type { CommandType } from "@/lib/kv";
 
 function TopBarToggle({
   label,
@@ -85,21 +87,15 @@ function useMollyState(): { state: MollyState; loading: boolean } {
   return { state, loading };
 }
 
-function MollyControls({ state, loading }: { state: MollyState; loading: boolean }) {
-  const [sending, setSending] = useState(false);
-
-  const sendCommand = async (command: "sleep" | "wake") => {
-    setSending(true);
-    try {
-      await fetch("/api/commands", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command }),
-      });
-    } catch { /* ignore */ }
-    setSending(false);
-  };
-
+function MollyControls({
+  state,
+  loading,
+  onCommand,
+}: {
+  state: MollyState;
+  loading: boolean;
+  onCommand: (command: CommandType) => void;
+}) {
   if (loading) {
     return (
       <div className="flex items-center gap-1.5">
@@ -112,9 +108,8 @@ function MollyControls({ state, loading }: { state: MollyState; loading: boolean
     return (
       <div className="flex items-center gap-1.5">
         <button
-          onClick={() => sendCommand("wake")}
-          disabled={sending}
-          className="px-2 py-1 text-[10px] font-medium text-neutral-500 hover:text-emerald-300 hover:bg-emerald-500/8 border border-transparent hover:border-emerald-500/20 rounded transition-all disabled:opacity-40"
+          onClick={() => onCommand("wake")}
+          className="px-2 py-1 text-[10px] font-medium text-neutral-500 hover:text-emerald-300 hover:bg-emerald-500/8 border border-transparent hover:border-emerald-500/20 rounded transition-all"
         >
           Wake
         </button>
@@ -126,17 +121,15 @@ function MollyControls({ state, loading }: { state: MollyState; loading: boolean
     <div className="flex items-center gap-1.5">
       {state === "awake" ? (
         <button
-          onClick={() => sendCommand("sleep")}
-          disabled={sending}
-          className="px-2 py-1 text-[10px] font-medium text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/8 border border-transparent hover:border-amber-500/20 rounded transition-all disabled:opacity-40"
+          onClick={() => onCommand("sleep")}
+          className="px-2 py-1 text-[10px] font-medium text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/8 border border-transparent hover:border-amber-500/20 rounded transition-all"
         >
           Sleep
         </button>
       ) : (
         <button
-          onClick={() => sendCommand("wake")}
-          disabled={sending}
-          className="px-2 py-1 text-[10px] font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/8 border border-transparent hover:border-emerald-500/20 rounded transition-all disabled:opacity-40"
+          onClick={() => onCommand("wake")}
+          className="px-2 py-1 text-[10px] font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/8 border border-transparent hover:border-emerald-500/20 rounded transition-all"
         >
           Wake
         </button>
@@ -165,6 +158,18 @@ export default function LiveTopBar({
   const { eventsPerSecond, emotionalState, lastThoughtTick } =
     useLiveStore();
   const { state: mollyState, loading: mollyLoading } = useMollyState();
+  const [activeCommand, setActiveCommand] = useState<CommandType | null>(null);
+
+  const handleCommand = useCallback(async (command: CommandType) => {
+    setActiveCommand(command);
+    try {
+      await fetch("/api/commands", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command }),
+      });
+    } catch { /* modal will show timeout if watcher never responds */ }
+  }, []);
 
   const moodLabel = emotionalState?.mood ?? "Unknown";
   const moodValence = emotionalState?.valence ?? 0;
@@ -183,6 +188,7 @@ export default function LiveTopBar({
     : "UNKNOWN";
 
   return (
+    <>
     <BracketFrame variant="combo-e" className="w-full px-4 py-2.5">
       <div className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-2.5 shrink-0">
@@ -231,7 +237,7 @@ export default function LiveTopBar({
           {statusLabel}
         </span>
         <div className="w-px h-3.5 bg-white/8" />
-        <MollyControls state={mollyState} loading={mollyLoading} />
+        <MollyControls state={mollyState} loading={mollyLoading} onCommand={handleCommand} />
         <div className="w-px h-3.5 bg-white/8" />
         <button
           onClick={onOpenSearch}
@@ -256,5 +262,12 @@ export default function LiveTopBar({
       </div>
       </div>
     </BracketFrame>
+    {activeCommand && (
+      <CommandModal
+        command={activeCommand}
+        onClose={() => setActiveCommand(null)}
+      />
+    )}
+    </>
   );
 }

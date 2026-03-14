@@ -36,6 +36,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Command log — POST from VM scripts (API key), GET from UI (session)
+  if (pathname === "/api/commands/log") {
+    if (req.method === "POST" && hasBearerKey(req)) return NextResponse.next();
+    if (req.method === "GET" && hasSessionToken(req)) return NextResponse.next();
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   // Commands — POST from UI (session), GET from watcher/Molly (API key)
   if (pathname === "/api/commands" || pathname === "/api/commands/pending") {
     if (req.method === "GET" && hasBearerKey(req)) return NextResponse.next();

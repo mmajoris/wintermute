@@ -19,13 +19,22 @@ export interface VMStatus {
 
 // ── Redis Client ───────────────────────────────────────────────────────────
 
+export interface CommandLogMeta {
+  command: CommandType;
+  status: "running" | "done" | "failed";
+  exit_code?: number;
+}
+
 const KEYS = {
   vmStatus: "molly:status",
   commandQueue: "molly:commands",
+  commandLog: "molly:command_log",
+  commandMeta: "molly:command_meta",
 } as const;
 
 const STATUS_TTL_SECONDS = 300;
 const COMMAND_TTL_SECONDS = 600;
+const LOG_TTL_SECONDS = 300;
 
 let redis: Redis | null = null;
 
@@ -69,8 +78,14 @@ export async function enqueueCommand(
     created_at: new Date().toISOString(),
   };
   const r = getRedis();
-  await r.lpush(KEYS.commandQueue, JSON.stringify(entry));
-  await r.expire(KEYS.commandQueue, COMMAND_TTL_SECONDS);
+  const meta: CommandLogMeta = { command, status: "running" };
+  await r
+    .multi()
+    .del(KEYS.commandLog)
+    .set(KEYS.commandMeta, JSON.stringify(meta), "EX", LOG_TTL_SECONDS)
+    .lpush(KEYS.commandQueue, JSON.stringify(entry))
+    .expire(KEYS.commandQueue, COMMAND_TTL_SECONDS)
+    .exec();
   return entry;
 }
 
@@ -98,4 +113,27 @@ export async function drainCommands(): Promise<QueuedCommand[]> {
 
   const rawList = lrangeResult[1] as string[];
   return rawList.map((s) => JSON.parse(s) as QueuedCommand);
+}
+
+// ── Command Log (streamed from VM scripts) ─────────────────────────────────
+
+export async function appendCommandLog(lines: string[]): Promise<void> {
+  if (lines.length === 0) return;
+  const r = getRedis();
+  await r.rpush(KEYS.commandLog, ...lines);
+  await r.expire(KEYS.commandLog, LOG_TTL_SECONDS);
+}
+
+export async function getCommandLog(since = 0): Promise<string[]> {
+  return getRedis().lrange(KEYS.commandLog, since, -1);
+}
+
+export async function setCommandMeta(meta: CommandLogMeta): Promise<void> {
+  await getRedis().set(KEYS.commandMeta, JSON.stringify(meta), "EX", LOG_TTL_SECONDS);
+}
+
+export async function getCommandMeta(): Promise<CommandLogMeta | null> {
+  const raw = await getRedis().get(KEYS.commandMeta);
+  if (!raw) return null;
+  return JSON.parse(raw) as CommandLogMeta;
 }
