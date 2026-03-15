@@ -18,16 +18,19 @@ export default function AboutLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        background: "#0a0a0a",
-        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-        overflow: "auto",
-        height: "auto",
-      }}
-    >
-      {children}
-    </div>
+    <>
+      <style>{`
+        html, body { overflow: auto !important; height: auto !important; }
+      `}</style>
+      <div
+        className="min-h-screen"
+        style={{
+          background: "#0a0a0a",
+          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+        }}
+      >
+        {children}
+      </div>
+    </>
   );
 }

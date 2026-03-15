@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useLiveStore } from "@/lib/live-store";
 import { BRAIN_MODEL_REGISTRY } from "@/lib/brain-model-loader";
 import { BracketFrame, HudSectionTitle } from "./BracketFrame";
 import LiveStatsPanel from "./LiveStatsPanel";
 import NeuralActivityRenderer from "@/components/examples/NeuralActivityRenderer";
+import SidebarTabs, { type Tab } from "./SidebarTabs";
+
+const LEFT_TABS: Tab[] = [
+  { id: "overview", label: "Overview" },
+  { id: "regions", label: "Regions" },
+  { id: "activity", label: "Activity" },
+];
 
 function CognitiveProcesses() {
   const { activeProcesses, lastThalamicGate, lastCascade } = useLiveStore();
@@ -110,6 +117,8 @@ function ActiveRegions() {
 }
 
 export default function LiveLeftPanel() {
+  const [activeTab, setActiveTab] = useState("overview");
+
   const subscribeFire = useCallback((fire: () => void) => {
     let prev = useLiveStore.getState().totalEventCount;
     return useLiveStore.subscribe((state) => {
@@ -123,20 +132,32 @@ export default function LiveLeftPanel() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-3 h-full min-h-0">
-      <LiveStatsPanel />
-      <BracketFrame variant="detail-3" className="px-4 py-4 overflow-hidden shrink-0 flex flex-col" style={{ height: 220 }}>
-        <HudSectionTitle>Synaptic Activity</HudSectionTitle>
-        <div className="relative -mx-4 flex-1 flex items-center justify-center">
-          <NeuralActivityRenderer onSubscribe={subscribeFire} />
+    <div className="flex flex-col h-full min-h-0">
+      <SidebarTabs tabs={LEFT_TABS} active={activeTab} onChange={setActiveTab} />
+
+      {activeTab === "overview" && (
+        <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto hud-scrollbar">
+          <LiveStatsPanel />
+          <BracketFrame variant="detail-3" className="p-4 overflow-hidden shrink-0 flex flex-col">
+            <CognitiveProcesses />
+          </BracketFrame>
         </div>
-      </BracketFrame>
-      <BracketFrame variant="detail-3" className="p-4 overflow-hidden shrink-0 flex flex-col">
-        <CognitiveProcesses />
-      </BracketFrame>
-      <BracketFrame variant="combo-d" className="p-4 overflow-hidden flex-1 min-h-32 flex flex-col">
-        <ActiveRegions />
-      </BracketFrame>
+      )}
+
+      {activeTab === "regions" && (
+        <BracketFrame variant="combo-d" className="p-4 overflow-hidden flex-1 min-h-0 flex flex-col">
+          <ActiveRegions />
+        </BracketFrame>
+      )}
+
+      {activeTab === "activity" && (
+        <BracketFrame variant="detail-3" className="px-4 py-4 overflow-hidden flex-1 min-h-0 flex flex-col">
+          <HudSectionTitle>Synaptic Activity</HudSectionTitle>
+          <div className="relative -mx-4 flex-1 flex items-center justify-center">
+            <NeuralActivityRenderer onSubscribe={subscribeFire} />
+          </div>
+        </BracketFrame>
+      )}
     </div>
   );
 }

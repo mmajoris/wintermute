@@ -16,6 +16,7 @@ export function useEventStream() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const eventCountRef = useRef(0);
   const lastCountTimeRef = useRef(Date.now());
+  const smoothedRateRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -71,11 +72,15 @@ export function useEventStream() {
 
     connect();
 
+    const EMA_ALPHA = 0.3;
     const rateInterval = setInterval(() => {
       const now = Date.now();
       const elapsed = (now - lastCountTimeRef.current) / 1000;
       if (elapsed > 0) {
-        setEventsPerSecond(eventCountRef.current / elapsed);
+        const raw = eventCountRef.current / elapsed;
+        const smoothed = smoothedRateRef.current * (1 - EMA_ALPHA) + raw * EMA_ALPHA;
+        smoothedRateRef.current = smoothed < 0.01 ? 0 : smoothed;
+        setEventsPerSecond(smoothedRateRef.current);
         eventCountRef.current = 0;
         lastCountTimeRef.current = now;
       }

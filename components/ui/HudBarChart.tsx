@@ -169,7 +169,7 @@ export default function HudBarChart({
                       ? `linear-gradient(90deg, ${c(0.15)} 0%, ${c(0.45)} 100%)`
                       : `linear-gradient(90deg, ${c(0.12)} 0%, ${c(0.35)} 50%, ${c(0.5)} 100%)`,
                     boxShadow: `0 0 8px ${c(0.3)}, inset 0 0 4px ${c(0.2)}`,
-                    transition: animated ? "width 0.6s ease-out" : undefined,
+                    transition: animated ? "width 1.2s cubic-bezier(0.4, 0, 0.2, 1)" : undefined,
                   }}
                 />
 

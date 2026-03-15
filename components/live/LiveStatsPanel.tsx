@@ -9,7 +9,20 @@ export default function LiveStatsPanel() {
   const { systemVitals, eventsPerSecond, dopamineLevel, emotionalState } =
     useLiveStore();
 
+  const online = eventsPerSecond > 0;
+
   const stats: BarData[] = useMemo(() => {
+    if (!online) {
+      return [
+        { label: "CPU", value: 0, maxValue: 100 },
+        { label: "MEM", value: 0, maxValue: 100 },
+        { label: "EV/s", value: 0, maxValue: 50 },
+        { label: "DA", value: 0, maxValue: 100 },
+        { label: "VAL", value: 0, maxValue: 100 },
+        { label: "ARO", value: 0, maxValue: 100 },
+      ];
+    }
+
     const cpu = systemVitals?.cpu_percent ?? 0;
     const mem = systemVitals?.memory_percent ?? 0;
     const valence = emotionalState?.valence ?? 0;
@@ -23,7 +36,7 @@ export default function LiveStatsPanel() {
       { label: "VAL", value: (valence + 1) * 50, maxValue: 100 },
       { label: "ARO", value: arousal * 100, maxValue: 100 },
     ];
-  }, [systemVitals, eventsPerSecond, dopamineLevel, emotionalState]);
+  }, [online, systemVitals, eventsPerSecond, dopamineLevel, emotionalState]);
 
   return (
     <BracketFrame variant="detail-5" className="p-4 shrink-0">

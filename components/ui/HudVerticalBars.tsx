@@ -75,7 +75,7 @@ export default function HudVerticalBars({
                 fill="url(#vbar-gradient)"
                 rx={1}
                 filter="url(#vbar-glow)"
-                style={animated ? { transition: "y 0.3s ease-out, height 0.3s ease-out" } : undefined}
+                style={animated ? { transition: "y 1s cubic-bezier(0.4, 0, 0.2, 1), height 1s cubic-bezier(0.4, 0, 0.2, 1)" } : undefined}
               />
               
               {/* Top highlight */}

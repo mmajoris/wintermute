@@ -116,7 +116,7 @@ export default function HudLinearGauge({
               fill={variant === "gradient" ? `url(#linear-gauge-gradient-${barWidth})` : c(0.85)}
               rx={2}
               filter={`url(#linear-gauge-glow-${barWidth})`}
-              style={animated ? { transition: "width 0.3s ease-out, height 0.3s ease-out" } : undefined}
+              style={animated ? { transition: "width 1s cubic-bezier(0.4, 0, 0.2, 1), height 1s cubic-bezier(0.4, 0, 0.2, 1)" } : undefined}
             />
           )}
 

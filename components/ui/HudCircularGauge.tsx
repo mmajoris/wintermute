@@ -105,7 +105,7 @@ export default function HudCircularGauge({
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           filter={`url(#gauge-glow-${size})`}
-          style={animated ? { transition: "d 0.5s ease-out" } : undefined}
+          style={animated ? { transition: "d 1s cubic-bezier(0.4, 0, 0.2, 1)" } : undefined}
         />
 
         {/* Inner decorative ring */}
