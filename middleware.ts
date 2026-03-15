@@ -68,9 +68,10 @@ export function middleware(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Public pages — only login and root
+  // Public pages
   const publicRoutes = ["/", "/login"];
-  const isPublicRoute = publicRoutes.includes(pathname);
+  const isPublicRoute =
+    publicRoutes.includes(pathname) || pathname.startsWith("/about");
   const isLoggedIn = hasSessionToken(req);
 
   if (!isPublicRoute && !isLoggedIn) {

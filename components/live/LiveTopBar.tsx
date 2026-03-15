@@ -357,6 +357,14 @@ export default function LiveTopBar({
         <TopBarToggle label="Architecture" active={architectureOpen} onClick={onToggleArchitecture} />
         <TopBarToggle label="Processes" active={panelOpen} onClick={onTogglePanel} />
         <div className="w-px h-3.5 bg-white/8" />
+        <a
+          href="/about"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2 py-1 text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors"
+        >
+          About
+        </a>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="px-2 py-1 text-[10px] text-neutral-600 hover:text-red-400 transition-colors"
