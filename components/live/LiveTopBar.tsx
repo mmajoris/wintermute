@@ -39,7 +39,7 @@ function TopBarToggle({
 
 type MollyState = "awake" | "asleep" | "unknown";
 
-const VM_POLL_INTERVAL_MS = 15_000;
+const VM_POLL_INTERVAL_MS = 10_000;
 const STALE_THRESHOLD_MS = 90_000;
 
 interface VMStatusResponse {
@@ -51,17 +51,34 @@ interface VMStatusResponse {
 }
 
 function useMollyState(): { state: MollyState; loading: boolean } {
-  const [vmStatus, setVmStatus] = useState<VMStatusResponse["status"]>(null);
+  const [state, setState] = useState<MollyState>("unknown");
   const [loading, setLoading] = useState(true);
   const eventsPerSecond = useLiveStore((s) => s.eventsPerSecond);
 
   const poll = useCallback(async () => {
     try {
       const res = await fetch("/api/vm-status");
-      if (res.ok) {
-        const data: VMStatusResponse = await res.json();
-        setVmStatus(data.status);
-      }
+      if (!res.ok) return;
+      const data: VMStatusResponse = await res.json();
+
+      setState((prev) => {
+        if (!data.status) {
+          // No status in Redis -- only go unknown if we weren't already awake
+          // with a live event stream
+          return prev;
+        }
+
+        const age = Date.now() - new Date(data.status.timestamp).getTime();
+        if (age > STALE_THRESHOLD_MS) {
+          return prev;
+        }
+
+        if (data.status.molly_active === "active") return "awake";
+        if (data.status.molly_active === "inactive") return "asleep";
+
+        // "activating", "deactivating", etc. -- keep previous state
+        return prev;
+      });
     } catch { /* network failure — keep last known state */ }
     setLoading(false);
   }, []);
@@ -72,19 +89,12 @@ function useMollyState(): { state: MollyState; loading: boolean } {
     return () => clearInterval(id);
   }, [poll]);
 
-  let state: MollyState = "unknown";
-
-  if (vmStatus) {
-    const age = Date.now() - new Date(vmStatus.timestamp).getTime();
-    if (age < STALE_THRESHOLD_MS) {
-      state = vmStatus.molly_active === "active" ? "awake" : "asleep";
+  // Fallback: if we've never gotten a vm-status but events are flowing, she's awake
+  useEffect(() => {
+    if (state === "unknown" && eventsPerSecond > 0) {
+      setState("awake");
     }
-  }
-
-  // Fallback: if watcher status is stale/missing, infer from live event stream
-  if (state === "unknown" && eventsPerSecond > 0) {
-    state = "awake";
-  }
+  }, [state, eventsPerSecond]);
 
   return { state, loading };
 }
