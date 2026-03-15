@@ -450,7 +450,7 @@ export default function LiveBrainMonitor() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="flex-1 min-h-0 flex flex-col gap-3 p-4"
+              className="flex-1 min-h-0 flex flex-col gap-3 p-4 overflow-y-auto hud-scrollbar"
             >
               <LiveProcessPanel />
             </motion.div>

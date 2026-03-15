@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { useLiveStore, getFilteredEvents } from "@/lib/live-store";
 import { BRAIN_MODEL_REGISTRY } from "@/lib/brain-model-loader";
 import { getCollectionsForRegion } from "@/lib/collection-mapping";
@@ -8,13 +8,6 @@ import type { BrainEvent } from "@/lib/brain-events";
 import { BracketFrame, HudDivider, HudSectionTitle } from "./BracketFrame";
 import { RadialPanel, TracesPanel } from "./NeurotransmitterPanels";
 import NeurochemistryPanel from "./NeurochemistryPanel";
-import SidebarTabs, { type Tab } from "./SidebarTabs";
-
-const RIGHT_TABS: Tab[] = [
-  { id: "signals", label: "Signals" },
-  { id: "chemistry", label: "Chemistry" },
-  { id: "events", label: "Events" },
-];
 
 function formatTimestamp(ts: string): string {
   const date = new Date(ts);
@@ -151,14 +144,28 @@ function EventSummary({ event }: { event: BrainEvent }) {
   }
 }
 
-function EventStreamPanel() {
-  const { recentEvents, selectedRegionId } = useLiveStore();
+export default function LiveProcessPanel() {
+  const {
+    recentEvents,
+    activeWorkers,
+    selectedRegionId,
+    selectRegion,
+  } = useLiveStore();
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
+
+  const selectedRegion = selectedRegionId
+    ? BRAIN_MODEL_REGISTRY.find((r) => r.id === selectedRegionId)
+    : null;
 
   const filteredEvents = useMemo(() => {
     return getFilteredEvents(recentEvents, selectedRegionId).slice(-80);
   }, [recentEvents, selectedRegionId]);
+
+  const collections = selectedRegionId
+    ? getCollectionsForRegion(selectedRegionId)
+    : [];
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -174,61 +181,7 @@ function EventStreamPanel() {
   };
 
   return (
-    <BracketFrame variant="detail-5" className="pointer-events-auto min-h-0 overflow-hidden flex-1">
-      <div className="flex flex-col h-full">
-        <div className="px-3 pt-2 pb-1 shrink-0">
-          <HudSectionTitle>
-            Event Stream
-            {selectedRegionId && <span className="text-indigo-400 ml-1">(filtered)</span>}
-          </HudSectionTitle>
-          <HudDivider />
-        </div>
-        <div ref={scrollRef} onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5"
-          style={{ scrollbarWidth: "thin" }}
-        >
-          {filteredEvents.length === 0 ? (
-            <div className="text-center py-4 text-neutral-600 text-xs">
-              Waiting for events...
-            </div>
-          ) : (
-            filteredEvents.map((envelope) => (
-              <div key={envelope.id}
-                className="flex items-start gap-2 px-2 py-0.5 rounded hover:bg-white/3 transition-colors"
-              >
-                <EventIcon type={envelope.event.type} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] text-neutral-300 truncate">
-                    <EventSummary event={envelope.event} />
-                  </div>
-                </div>
-                <span className="text-[9px] text-neutral-600 font-mono shrink-0">
-                  {formatTimestamp(envelope.received_at)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </BracketFrame>
-  );
-}
-
-export default function LiveProcessPanel() {
-  const [activeTab, setActiveTab] = useState("signals");
-  const { activeWorkers, selectedRegionId, selectRegion } = useLiveStore();
-
-  const selectedRegion = selectedRegionId
-    ? BRAIN_MODEL_REGISTRY.find((r) => r.id === selectedRegionId)
-    : null;
-
-  const collections = selectedRegionId
-    ? getCollectionsForRegion(selectedRegionId)
-    : [];
-
-  return (
     <div className="flex flex-col gap-3 overflow-hidden min-h-0 flex-1">
-      {/* Contextual panels -- always visible when present */}
       {selectedRegion && (
         <BracketFrame variant="combo-a" className="pointer-events-auto overflow-hidden shrink-0">
           <div className="h-px w-full"
@@ -287,24 +240,49 @@ export default function LiveProcessPanel() {
         </BracketFrame>
       )}
 
-      {/* Tab bar */}
-      <SidebarTabs tabs={RIGHT_TABS} active={activeTab} onChange={setActiveTab} />
+      <RadialPanel />
+      <NeurochemistryPanel />
+      <TracesPanel />
 
-      {/* Tab content */}
-      {activeTab === "signals" && (
-        <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto hud-scrollbar">
-          <RadialPanel />
-          <TracesPanel />
+      <BracketFrame variant="detail-5" className="pointer-events-auto min-h-0 overflow-hidden flex-1"
+        style={{ maxHeight: 320 }}
+      >
+        <div className="flex flex-col h-full">
+        <div className="px-3 pt-2 pb-1 shrink-0">
+          <HudSectionTitle>
+            Event Stream
+            {selectedRegionId && <span className="text-indigo-400 ml-1">(filtered)</span>}
+          </HudSectionTitle>
+          <HudDivider />
         </div>
-      )}
-
-      {activeTab === "chemistry" && (
-        <NeurochemistryPanel />
-      )}
-
-      {activeTab === "events" && (
-        <EventStreamPanel />
-      )}
+        <div ref={scrollRef} onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5"
+          style={{ scrollbarWidth: "thin" }}
+        >
+          {filteredEvents.length === 0 ? (
+            <div className="text-center py-4 text-neutral-600 text-xs">
+              Waiting for events...
+            </div>
+          ) : (
+            filteredEvents.map((envelope) => (
+              <div key={envelope.id}
+                className="flex items-start gap-2 px-2 py-0.5 rounded hover:bg-white/3 transition-colors"
+              >
+                <EventIcon type={envelope.event.type} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] text-neutral-300 truncate">
+                    <EventSummary event={envelope.event} />
+                  </div>
+                </div>
+                <span className="text-[9px] text-neutral-600 font-mono shrink-0">
+                  {formatTimestamp(envelope.received_at)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+        </div>
+      </BracketFrame>
     </div>
   );
 }
