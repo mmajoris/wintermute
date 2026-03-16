@@ -126,7 +126,7 @@ export default function HudBarChart({
       <div className="flex flex-col" style={{ gap: barGap }}>
         {data.map((item, idx) => {
           const pct = maxVal > 0 ? (item.value / maxVal) * 100 : 0;
-          const gd = glitchData?.[idx];
+          const gd = pct > 0 ? glitchData?.[idx] : null;
           
           return (
             <div key={idx} className="flex items-center" style={{ height: barHeight }}>

@@ -1,187 +1,39 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
-import { useLiveStore, getFilteredEvents } from "@/lib/live-store";
+import { useLiveStore } from "@/lib/live-store";
 import { BRAIN_MODEL_REGISTRY } from "@/lib/brain-model-loader";
 import { getCollectionsForRegion } from "@/lib/collection-mapping";
-import type { BrainEvent } from "@/lib/brain-events";
-import { BracketFrame, HudDivider, HudSectionTitle } from "./BracketFrame";
-import { RadialPanel, TracesPanel } from "./NeurotransmitterPanels";
-import NeurochemistryPanel from "./NeurochemistryPanel";
-
-function formatTimestamp(ts: string): string {
-  const date = new Date(ts);
-  return date.toLocaleTimeString("en-US", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
+import { useState } from "react";
+import { BracketFrame, HudSectionTitle } from "./BracketFrame";
+import { usePanelLayout } from "@/lib/panel-layout";
+import SidebarTabs from "./SidebarTabs";
+import PanelRenderer from "./PanelRenderer";
+import SidebarContextMenu from "./SidebarContextMenu";
 
 function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function EventIcon({ type }: { type: BrainEvent["type"] }) {
-  const icons: Record<BrainEvent["type"], { icon: string; color: string }> = {
-    thought_loop_tick: { icon: "\u25C9", color: "#818cf8" },
-    collection_activity: { icon: "\u25C6", color: "#22c55e" },
-    worker_activity: { icon: "\u2699", color: "#f59e0b" },
-    queue_metrics: { icon: "\u25A4", color: "#06b6d4" },
-    emotional_state: { icon: "\u2665", color: "#ec4899" },
-    soul_cycle: { icon: "\u2727", color: "#a78bfa" },
-    action_dispatch: { icon: "\u2192", color: "#fb923c" },
-    system_vitals: { icon: "\u2661", color: "#ef4444" },
-    budget_status: { icon: "$", color: "#eab308" },
-    memory_event: { icon: "\u25C7", color: "#14b8a6" },
-    reward_signal: { icon: "\u2605", color: "#f472b6" },
-    error_correction: { icon: "\u27F3", color: "#8b5cf6" },
-    thalamic_gate: { icon: "\u2299", color: "#f97316" },
-    hippocampal_cascade: { icon: "\u25CE", color: "#14b8a6" },
-    llm_call: { icon: "\u29EB", color: "#60a5fa" },
-    neurochemistry_state: { icon: "\u2B21", color: "#34d399" },
-  };
-
-  const { icon, color } = icons[type] ?? { icon: "\u2022", color: "#666" };
-
-  return (
-    <span className="text-xs" style={{ color }}>
-      {icon}
-    </span>
-  );
-}
-
-function EventSummary({ event }: { event: BrainEvent }) {
-  switch (event.type) {
-    case "thought_loop_tick":
-      return (
-        <span>
-          Thought tick{" "}
-          {event.impulse && <span className="text-indigo-400">(impulse)</span>}
-        </span>
-      );
-    case "collection_activity":
-      return (
-        <span>
-          <span className="text-cyan-400 font-mono">{event.collection}</span>{" "}
-          <span className="text-neutral-500">{event.operation}</span>{" "}
-          <span className="text-neutral-400">&times;{event.count}</span>
-        </span>
-      );
-    case "worker_activity":
-      return (
-        <span>
-          <span className="text-amber-400">{event.worker}</span>{" "}
-          <span className={event.status === "completed" ? "text-emerald-500" : event.status === "failed" ? "text-red-500" : "text-neutral-500"}>
-            {event.status}
-          </span>
-          {event.duration_ms && (
-            <span className="text-neutral-600 ml-1">{formatDuration(event.duration_ms)}</span>
-          )}
-        </span>
-      );
-    case "queue_metrics":
-      return (
-        <span>
-          <span className="text-cyan-400 font-mono">{event.queue}</span>{" "}
-          <span className="text-neutral-500">{event.pending}p / {event.active}a</span>
-        </span>
-      );
-    case "emotional_state":
-      return (
-        <span>
-          Mood:{" "}
-          <span className={event.valence > 0.3 ? "text-emerald-400" : event.valence < -0.3 ? "text-red-400" : "text-amber-400"}>
-            {event.mood}
-          </span>
-        </span>
-      );
-    case "soul_cycle":
-      return (
-        <span>
-          Soul cycle <span className="text-purple-400">{event.tier}</span>{" "}
-          <span className="text-neutral-500">{event.status}</span>
-        </span>
-      );
-    case "action_dispatch":
-      return (
-        <span>
-          Action: <span className="text-orange-400">{event.action}</span>{" "}
-          <span className="text-neutral-500">&rarr; {event.target}</span>
-        </span>
-      );
-    case "system_vitals":
-      return (
-        <span>
-          Vitals: CPU {event.cpu_percent.toFixed(0)}% / Mem {event.memory_percent.toFixed(0)}%
-        </span>
-      );
-    case "memory_event":
-      return (
-        <span>
-          Memory <span className="text-teal-400">{event.operation}</span>
-        </span>
-      );
-    case "reward_signal":
-      return (
-        <span>
-          Reward:{" "}
-          <span className={event.prediction_error > 0 ? "text-emerald-400" : "text-red-400"}>
-            {event.prediction_error > 0 ? "+" : ""}{event.prediction_error.toFixed(2)}
-          </span>
-        </span>
-      );
-    case "error_correction":
-      return (
-        <span>
-          Error correction: <span className="text-purple-400">{event.source}</span>
-        </span>
-      );
-    default:
-      return <span>{event.type}</span>;
-  }
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
 export default function LiveProcessPanel() {
-  const {
-    recentEvents,
-    activeWorkers,
-    selectedRegionId,
-    selectRegion,
-  } = useLiveStore();
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const userScrolledUp = useRef(false);
+  const { activeWorkers, selectedRegionId, selectRegion } = useLiveStore();
+  const { right, activeRight, setActiveTab } = usePanelLayout();
+  const activeTab = right.find((t) => t.id === activeRight) ?? right[0];
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   const selectedRegion = selectedRegionId
     ? BRAIN_MODEL_REGISTRY.find((r) => r.id === selectedRegionId)
     : null;
 
-  const filteredEvents = useMemo(() => {
-    return getFilteredEvents(recentEvents, selectedRegionId).slice(-80);
-  }, [recentEvents, selectedRegionId]);
-
   const collections = selectedRegionId
     ? getCollectionsForRegion(selectedRegionId)
     : [];
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || userScrolledUp.current) return;
-    el.scrollTop = el.scrollHeight;
-  }, [filteredEvents]);
-
-  const handleScroll = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-    userScrolledUp.current = !atBottom;
-  };
-
   return (
-    <div className="flex flex-col gap-3 overflow-hidden min-h-0 flex-1">
+    <div
+      className="flex flex-col gap-3 overflow-hidden min-h-0 flex-1"
+      onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); }}
+    >
+      {/* Contextual panels -- always visible when present */}
       {selectedRegion && (
         <BracketFrame variant="combo-a" className="pointer-events-auto overflow-hidden shrink-0">
           <div className="h-px w-full"
@@ -240,49 +92,18 @@ export default function LiveProcessPanel() {
         </BracketFrame>
       )}
 
-      <RadialPanel />
-      <NeurochemistryPanel />
-      <TracesPanel />
-
-      <BracketFrame variant="detail-5" className="pointer-events-auto min-h-0 overflow-hidden flex-1"
-        style={{ maxHeight: 320 }}
-      >
-        <div className="flex flex-col h-full">
-        <div className="px-3 pt-2 pb-1 shrink-0">
-          <HudSectionTitle>
-            Event Stream
-            {selectedRegionId && <span className="text-indigo-400 ml-1">(filtered)</span>}
-          </HudSectionTitle>
-          <HudDivider />
-        </div>
-        <div ref={scrollRef} onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5"
-          style={{ scrollbarWidth: "thin" }}
-        >
-          {filteredEvents.length === 0 ? (
-            <div className="text-center py-4 text-neutral-600 text-xs">
-              Waiting for events...
-            </div>
-          ) : (
-            filteredEvents.map((envelope) => (
-              <div key={envelope.id}
-                className="flex items-start gap-2 px-2 py-0.5 rounded hover:bg-white/3 transition-colors"
-              >
-                <EventIcon type={envelope.event.type} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] text-neutral-300 truncate">
-                    <EventSummary event={envelope.event} />
-                  </div>
-                </div>
-                <span className="text-[9px] text-neutral-600 font-mono shrink-0">
-                  {formatTimestamp(envelope.received_at)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-        </div>
-      </BracketFrame>
+      {/* Tab bar + configurable panels */}
+      <SidebarTabs
+        tabs={right}
+        active={activeTab?.id ?? "default"}
+        onChange={(id) => setActiveTab("right", id)}
+      />
+      <div className="flex flex-col gap-3 flex-1 min-h-0">
+        {activeTab && <PanelRenderer panels={activeTab.panels} />}
+      </div>
+      {menuPos && (
+        <SidebarContextMenu side="right" pos={menuPos} onClose={() => setMenuPos(null)} />
+      )}
     </div>
   );
 }

@@ -78,8 +78,13 @@ export function useEventStream() {
       const elapsed = (now - lastCountTimeRef.current) / 1000;
       if (elapsed > 0) {
         const raw = eventCountRef.current / elapsed;
-        const smoothed = smoothedRateRef.current * (1 - EMA_ALPHA) + raw * EMA_ALPHA;
-        smoothedRateRef.current = smoothed < 0.01 ? 0 : smoothed;
+        let smoothed: number;
+        if (raw === 0) {
+          smoothed = smoothedRateRef.current * 0.3;
+        } else {
+          smoothed = smoothedRateRef.current * (1 - EMA_ALPHA) + raw * EMA_ALPHA;
+        }
+        smoothedRateRef.current = smoothed < 0.05 ? 0 : smoothed;
         setEventsPerSecond(smoothedRateRef.current);
         eventCountRef.current = 0;
         lastCountTimeRef.current = now;
