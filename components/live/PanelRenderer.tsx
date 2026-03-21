@@ -16,6 +16,10 @@ import AffectCircuitsPanel from "./neuro/AffectCircuitsPanel";
 import DopaminePanel from "./neuro/DopaminePanel";
 import CircadianPanel from "./neuro/CircadianPanel";
 import CognitivePanel from "./neuro/CognitivePanel";
+import MRIViewer from "./neuro/MRIViewer";
+import CTScanViewer from "./neuro/CTScanViewer";
+import PETScanViewer from "./neuro/PETScanViewer";
+import FMRIViewer from "./neuro/fMRIViewer";
 
 // ── Individual panel components ────────────────────────────────────────────
 
@@ -274,6 +278,10 @@ const PANEL_COMPONENTS: Record<string, React.ComponentType> = {
   "dopamine-system": DopaminePanel,
   "circadian-rhythm": CircadianPanel,
   "cortical-cognitive": CognitivePanel,
+  "mri-viewer": MRIViewer,
+  "ct-scan": CTScanViewer,
+  "pet-scan": PETScanViewer,
+  "fmri-bold": FMRIViewer,
 };
 
 // ── Renderer ───────────────────────────────────────────────────────────────

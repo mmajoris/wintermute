@@ -24,6 +24,10 @@ export const PANEL_REGISTRY: PanelDef[] = [
   { id: "dopamine-system", label: "Dopamine System" },
   { id: "circadian-rhythm", label: "Circadian & Homeostasis" },
   { id: "cortical-cognitive", label: "Cognitive & Memory" },
+  { id: "mri-viewer", label: "MRI Scan" },
+  { id: "ct-scan", label: "CT Scan" },
+  { id: "pet-scan", label: "PET Scan" },
+  { id: "fmri-bold", label: "fMRI BOLD" },
 ];
 
 export function getPanelLabel(id: string): string {
@@ -59,6 +63,11 @@ const DEFAULT_LAYOUT: SidebarLayout = {
       label: "Neuro",
       panels: ["affect-circuits", "hpa-stress", "dopamine-system"],
     },
+    {
+      id: "imaging",
+      label: "Imaging",
+      panels: ["mri-viewer", "ct-scan"],
+    },
   ],
   right: [
     {
@@ -75,6 +84,11 @@ const DEFAULT_LAYOUT: SidebarLayout = {
       id: "clinical",
       label: "Clinical",
       panels: ["circadian-rhythm", "cortical-cognitive"],
+    },
+    {
+      id: "functional",
+      label: "Functional",
+      panels: ["pet-scan", "fmri-bold"],
     },
   ],
   activeLeft: "default",
@@ -150,9 +164,9 @@ export const usePanelLayout = create<PanelLayoutStore>()(
     }),
     {
       name: "wintermute:panel-layout",
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, version: number) => {
-        if (version < 2) {
+        if (version < 3) {
           return DEFAULT_LAYOUT;
         }
         return persisted as PanelLayoutStore;

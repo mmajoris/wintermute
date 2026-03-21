@@ -1,0 +1,78 @@
+{
+  "dims": [
+    193,
+    229,
+    193
+  ],
+  "pixdim": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "srow_x": [
+    1.0,
+    0.0,
+    0.0,
+    -96.0
+  ],
+  "srow_y": [
+    0.0,
+    1.0,
+    0.0,
+    -132.0
+  ],
+  "srow_z": [
+    0.0,
+    0.0,
+    1.0,
+    -78.0
+  ],
+  "volumes": {
+    "t1": {
+      "file": "t1.bin.gz",
+      "description": "T1-weighted MRI template"
+    },
+    "t2": {
+      "file": "t2.bin.gz",
+      "description": "T2-weighted MRI template"
+    },
+    "gm": {
+      "file": "gm.bin.gz",
+      "description": "Gray matter tissue probability"
+    },
+    "wm": {
+      "file": "wm.bin.gz",
+      "description": "White matter tissue probability"
+    },
+    "csf": {
+      "file": "csf.bin.gz",
+      "description": "CSF tissue probability"
+    },
+    "mask": {
+      "file": "mask.bin.gz",
+      "description": "Brain mask"
+    },
+    "flair": {
+      "file": "flair.bin.gz",
+      "description": "FLAIR (CSF-suppressed T2)"
+    },
+    "dwi": {
+      "file": "dwi.bin.gz",
+      "description": "DWI b=1000 (diffusion-weighted)"
+    },
+    "adc": {
+      "file": "adc.bin.gz",
+      "description": "ADC map (apparent diffusion coefficient)"
+    },
+    "t1_hd": {
+      "file": "t1_hd.bin.gz",
+      "description": "T1-weighted 0.5mm high-resolution"
+    },
+    "t2_hd": {
+      "file": "t2_hd.bin.gz",
+      "description": "T2-weighted 0.5mm high-resolution"
+    }
+  },
+  "source": "ICBM 2009c Nonlinear Asymmetric",
+  "citation": "Fonov et al., NeuroImage 54(1), 2011"
+}
