@@ -14,6 +14,9 @@ import {
   type AtlasMeta,
   type LoadedVolume,
 } from "@/lib/volume-atlas";
+import type { ScanStudy } from "@/lib/scan-store";
+import ScanAcquisition from "./ScanAcquisition";
+import { StudyBrowserOverlay } from "./StudyBrowser";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -71,12 +74,12 @@ interface ClinicalImageViewerProps {
   open: boolean;
   onClose: () => void;
   initialModality?: Modality;
+  study?: ScanStudy | null;
 }
 
-export default function ClinicalImageViewer({ open, onClose, initialModality = "MRI" }: ClinicalImageViewerProps) {
+export default function ClinicalImageViewer({ open, onClose, initialModality = "MRI", study = null }: ClinicalImageViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // State
   const [modality, setModality] = useState<Modality>(initialModality);
   const [sequence, setSequence] = useState<MRISequence>("T1");
   const [plane, setPlane] = useState<SlicePlane>("axial");
@@ -90,16 +93,24 @@ export default function ClinicalImageViewer({ open, onClose, initialModality = "
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [pendingMeasure, setPendingMeasure] = useState<MeasurementPoint | null>(null);
   const [ctPresetIdx, setCtPresetIdx] = useState(0);
+  const [acquireOpen, setAcquireOpen] = useState(false);
+  const [studiesOpen, setStudiesOpen] = useState(false);
+  const [activeStudy, setActiveStudy] = useState<ScanStudy | null>(study);
 
   const metaRef = useRef<AtlasMeta | null>(null);
   const volumesRef = useRef<Map<string, LoadedVolume>>(new Map());
   const isDragging = useRef(false);
   const lastDragPos = useRef({ x: 0, y: 0 });
 
-  // Reset state when modality changes
+  const isHistorical = activeStudy !== null;
+
   useEffect(() => {
     setModality(initialModality);
   }, [initialModality]);
+
+  useEffect(() => {
+    setActiveStudy(study);
+  }, [study]);
 
   // Load volumes
   useEffect(() => {
@@ -293,6 +304,76 @@ export default function ClinicalImageViewer({ open, onClose, initialModality = "
 
   const handleMouseUp = useCallback(() => { isDragging.current = false; }, []);
 
+  // ── Export film sheet ───────────────────────────────────────────────
+
+  const handleExportFilmSheet = useCallback(async () => {
+    const vol = volumesRef.current.get(modality === "MRI" ? SEQUENCE_TO_KEY[sequence] : "t1");
+    if (!vol) return;
+
+    const cols = 5;
+    const totalSlices = 20;
+    const rows = Math.ceil(totalSlices / cols);
+    const sliceStep = Math.floor(vol.dimZ / (totalSlices + 1));
+    const thumbW = 200;
+    const thumbH = 200;
+    const margin = 4;
+    const headerH = 40;
+
+    const filmW = cols * (thumbW + margin) + margin;
+    const filmH = headerH + rows * (thumbH + margin) + margin;
+
+    const filmCanvas = document.createElement("canvas");
+    filmCanvas.width = filmW;
+    filmCanvas.height = filmH;
+    const fCtx = filmCanvas.getContext("2d")!;
+
+    fCtx.fillStyle = "#000";
+    fCtx.fillRect(0, 0, filmW, filmH);
+
+    fCtx.fillStyle = "#ffffffaa";
+    fCtx.font = "bold 14px 'IBM Plex Mono', monospace";
+    const headerDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+    fCtx.fillText(`MOLLY — ${modality}${modality === "MRI" ? ` ${sequence}` : ""} — ${headerDate}`, margin + 4, 24);
+
+    for (let i = 0; i < totalSlices; i++) {
+      const sIdx = sliceStep * (i + 1);
+      const { pixels, width, height } = extractSlice(vol, "axial", sIdx);
+
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const tCtx = tempCanvas.getContext("2d")!;
+      const imgData = tCtx.createImageData(width, height);
+      const wl = windowCenter - windowWidth / 2;
+      const wh = windowCenter + windowWidth / 2;
+      for (let j = 0; j < pixels.length; j++) {
+        const v = Math.max(0, Math.min(255, ((pixels[j] - wl) / (wh - wl)) * 255));
+        const idx = j * 4;
+        imgData.data[idx] = v;
+        imgData.data[idx + 1] = v;
+        imgData.data[idx + 2] = v;
+        imgData.data[idx + 3] = 255;
+      }
+      tCtx.putImageData(imgData, 0, 0);
+
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const dx = margin + col * (thumbW + margin);
+      const dy = headerH + margin + row * (thumbH + margin);
+      fCtx.drawImage(tempCanvas, 0, 0, width, height, dx, dy, thumbW, thumbH);
+
+      fCtx.fillStyle = "#ffffff40";
+      fCtx.font = "9px 'IBM Plex Mono', monospace";
+      fCtx.fillText(`Slice ${sIdx}`, dx + 4, dy + thumbH - 4);
+    }
+
+    const exportDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+    const link = document.createElement("a");
+    link.download = `MOLLY_${modality}_${sequence}_${exportDate.replace(/\//g, "-")}.png`;
+    link.href = filmCanvas.toDataURL("image/png");
+    link.click();
+  }, [modality, sequence, windowCenter, windowWidth]);
+
   // ── Slice range and MNI (uses primary display volume for HD-aware ranges) ──
 
   const meta = metaRef.current;
@@ -329,9 +410,9 @@ export default function ClinicalImageViewer({ open, onClose, initialModality = "
     mniStr = `X:${mx.toFixed(0)} Y:${my.toFixed(0)} Z:${mz.toFixed(0)}`;
   }
 
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
-  const timeStr = now.toLocaleTimeString("en-US", { hour12: false });
+  const displayDate = isHistorical ? new Date(activeStudy.createdAt) : new Date();
+  const dateStr = displayDate.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+  const timeStr = displayDate.toLocaleTimeString("en-US", { hour12: false });
 
   if (!open) return null;
 
@@ -424,7 +505,37 @@ export default function ClinicalImageViewer({ open, onClose, initialModality = "
 
         <div className="flex-1" />
 
-        {/* W/L display */}
+        {/* Historical badge */}
+        {isHistorical && (
+          <>
+            <span className="text-[9px] px-2 py-0.5 rounded font-bold"
+              style={{ color: "#f59e0b", background: "#f59e0b15", border: "1px solid #f59e0b30" }}>
+              HISTORICAL
+            </span>
+            <button onClick={() => setActiveStudy(null)}
+              className="text-[9px] text-[#555] hover:text-white transition-colors">
+              Live
+            </button>
+            <div className="w-px h-5 bg-[#222]" />
+          </>
+        )}
+
+        {/* Acquire / Studies / Export */}
+        <button onClick={() => setAcquireOpen(true)}
+          className="text-[10px] px-2 py-1 rounded transition-colors text-[#00c8dc] hover:bg-[#00c8dc12]">
+          Acquire
+        </button>
+        <button onClick={() => setStudiesOpen(true)}
+          className="text-[10px] px-2 py-1 rounded transition-colors text-[#888] hover:bg-white/5">
+          Studies
+        </button>
+        <button onClick={handleExportFilmSheet}
+          className="text-[10px] px-2 py-1 rounded transition-colors text-[#888] hover:bg-white/5">
+          Export
+        </button>
+
+        <div className="w-px h-5 bg-[#222]" />
+
         <span className="text-[9px] text-[#555]">
           W:{windowWidth.toFixed(0)} L:{windowCenter.toFixed(0)}
         </span>
@@ -492,6 +603,9 @@ export default function ClinicalImageViewer({ open, onClose, initialModality = "
           <div>{dateStr} {timeStr}</div>
           <div>{modality}{modality === "MRI" ? ` ${sequence}` : modality === "CT" ? ` ${CT_PRESETS[ctPresetIdx].label}` : ""}</div>
           <div>{plane.toUpperCase()} · Slice {sliceIdx ?? "—"}/{range.max}</div>
+          {isHistorical && activeStudy.indication && (
+            <div style={{ color: "#f59e0b88" }}>Indication: {activeStudy.indication}</div>
+          )}
         </div>
 
         {/* Bottom-left: Sequence parameters */}
@@ -568,6 +682,18 @@ export default function ClinicalImageViewer({ open, onClose, initialModality = "
         <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
           className="text-[9px] text-[#444] hover:text-white transition-colors">Reset</button>
       </div>
+
+      {/* Overlays */}
+      <ScanAcquisition
+        open={acquireOpen}
+        onClose={() => setAcquireOpen(false)}
+        onAcquired={(s) => setActiveStudy(s)}
+      />
+      <StudyBrowserOverlay
+        open={studiesOpen}
+        onClose={() => setStudiesOpen(false)}
+        onSelectStudy={(s) => setActiveStudy(s)}
+      />
     </div>
   );
 

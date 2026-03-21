@@ -20,6 +20,7 @@ import MRIViewer from "./neuro/MRIViewer";
 import CTScanViewer from "./neuro/CTScanViewer";
 import PETScanViewer from "./neuro/PETScanViewer";
 import FMRIViewer from "./neuro/fMRIViewer";
+import StudyBrowserPanel from "./neuro/StudyBrowser";
 
 // ── Individual panel components ────────────────────────────────────────────
 
@@ -282,6 +283,7 @@ const PANEL_COMPONENTS: Record<string, React.ComponentType> = {
   "ct-scan": CTScanViewer,
   "pet-scan": PETScanViewer,
   "fmri-bold": FMRIViewer,
+  "study-browser": StudyBrowserPanel,
 };
 
 // ── Renderer ───────────────────────────────────────────────────────────────

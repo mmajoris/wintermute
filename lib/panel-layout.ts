@@ -28,6 +28,7 @@ export const PANEL_REGISTRY: PanelDef[] = [
   { id: "ct-scan", label: "CT Scan" },
   { id: "pet-scan", label: "PET Scan" },
   { id: "fmri-bold", label: "fMRI BOLD" },
+  { id: "study-browser", label: "Scan Studies" },
 ];
 
 export function getPanelLabel(id: string): string {
@@ -89,6 +90,11 @@ const DEFAULT_LAYOUT: SidebarLayout = {
       id: "functional",
       label: "Functional",
       panels: ["pet-scan", "fmri-bold"],
+    },
+    {
+      id: "studies",
+      label: "Studies",
+      panels: ["study-browser"],
     },
   ],
   activeLeft: "default",
@@ -164,9 +170,9 @@ export const usePanelLayout = create<PanelLayoutStore>()(
     }),
     {
       name: "wintermute:panel-layout",
-      version: 3,
+      version: 4,
       migrate: (persisted: unknown, version: number) => {
-        if (version < 3) {
+        if (version < 4) {
           return DEFAULT_LAYOUT;
         }
         return persisted as PanelLayoutStore;
