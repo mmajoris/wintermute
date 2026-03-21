@@ -9,6 +9,13 @@ import LiveStatsPanel from "./LiveStatsPanel";
 import NeuralActivityRenderer from "@/components/examples/NeuralActivityRenderer";
 import { RadialPanel, TracesPanel } from "./NeurotransmitterPanels";
 import NeurochemistryPanel from "./NeurochemistryPanel";
+import EEGDisplay from "./neuro/EEGDisplay";
+import BrainTopography from "./neuro/BrainTopography";
+import HPAAxisPanel from "./neuro/HPAAxisPanel";
+import AffectCircuitsPanel from "./neuro/AffectCircuitsPanel";
+import DopaminePanel from "./neuro/DopaminePanel";
+import CircadianPanel from "./neuro/CircadianPanel";
+import CognitivePanel from "./neuro/CognitivePanel";
 
 // ── Individual panel components ────────────────────────────────────────────
 
@@ -157,6 +164,17 @@ function EventIcon({ type }: { type: BrainEvent["type"] }) {
     hippocampal_cascade: { icon: "\u25CE", color: "#14b8a6" },
     llm_call: { icon: "\u29EB", color: "#60a5fa" },
     neurochemistry_state: { icon: "\u2B21", color: "#34d399" },
+    affect_circuits: { icon: "\u2665", color: "#f59e0b" },
+    dopamine_state: { icon: "\u25C8", color: "#6366f1" },
+    hpa_axis_state: { icon: "\u2318", color: "#ef4444" },
+    endorphin_dynamics: { icon: "\u2736", color: "#f59e0b" },
+    circadian_state: { icon: "\u25D4", color: "#06b6d4" },
+    cortical_modulation_state: { icon: "\u25A3", color: "#8b5cf6" },
+    oscillation_state: { icon: "\u223F", color: "#34d399" },
+    homeostasis_state: { icon: "\u2261", color: "#22c55e" },
+    drive_states: { icon: "\u27A4", color: "#ec4899" },
+    mood_snapshot: { icon: "\u263A", color: "#fbbf24" },
+    consolidation_stats: { icon: "\u29C9", color: "#14b8a6" },
   };
   const { icon, color } = icons[type] ?? { icon: "\u2022", color: "#666" };
   return <span className="text-xs" style={{ color }}>{icon}</span>;
@@ -175,6 +193,17 @@ function EventSummary({ event }: { event: BrainEvent }) {
     case "memory_event": return <span>Memory <span className="text-teal-400">{event.operation}</span></span>;
     case "reward_signal": return <span>Reward: <span className={event.prediction_error > 0 ? "text-emerald-400" : "text-red-400"}>{event.prediction_error > 0 ? "+" : ""}{event.prediction_error.toFixed(2)}</span></span>;
     case "error_correction": return <span>Error correction: <span className="text-purple-400">{event.source}</span></span>;
+    case "affect_circuits": return <span>Affect V:<span className={event.valence > 0.3 ? "text-emerald-400" : event.valence < -0.3 ? "text-red-400" : "text-amber-400"}>{event.valence.toFixed(2)}</span> A:{event.arousal.toFixed(2)}</span>;
+    case "dopamine_state": return <span>DA tonic:{event.tonic.toFixed(2)} RPE:<span className={event.reward_prediction_error > 0 ? "text-emerald-400" : "text-red-400"}>{event.reward_prediction_error > 0 ? "+" : ""}{event.reward_prediction_error.toFixed(3)}</span></span>;
+    case "hpa_axis_state": return <span>HPA CORT:<span className={event.cortisol > 0.7 ? "text-red-400" : "text-amber-400"}>{(event.cortisol * 100).toFixed(0)}%</span> load:{(event.chronic_load * 100).toFixed(0)}%</span>;
+    case "endorphin_dynamics": return <span>Endorphin: {(event.level * 100).toFixed(0)}% {event.refractory > 0.5 ? <span className="text-red-400">refrac</span> : <span className="text-emerald-400">ready</span>}</span>;
+    case "circadian_state": return <span>CT:{event.circadian_time.toFixed(1)}h alert:{(event.alertness * 100).toFixed(0)}%</span>;
+    case "cortical_modulation_state": return <span>PFC:{(event.pfc_capacity * 100).toFixed(0)}% err:{(event.error_rate * 100).toFixed(0)}%</span>;
+    case "oscillation_state": return <span>EEG {event.populations.length}ch update</span>;
+    case "homeostasis_state": return <span>Mode: <span className={event.operating_mode === "homeostatic" ? "text-emerald-400" : event.operating_mode === "allostatic_overload" ? "text-red-400" : "text-amber-400"}>{event.operating_mode}</span></span>;
+    case "drive_states": return <span>Drives seek:{(event.seeking_drive * 100).toFixed(0)}% social:{(event.social_drive * 100).toFixed(0)}%</span>;
+    case "mood_snapshot": return <span>Mood V:{event.valence.toFixed(2)} A:{event.arousal.toFixed(2)} D:{event.dominance.toFixed(2)}</span>;
+    case "consolidation_stats": return <span>Memory +{event.consolidated} -{event.forgotten} replay:{event.replayed}</span>;
     default: return <span>{event.type}</span>;
   }
 }
@@ -238,6 +267,13 @@ const PANEL_COMPONENTS: Record<string, React.ComponentType> = {
   "neurochemistry": NeurochemistryPanel,
   "traces": TracesPanel,
   "events": EventStreamPanel,
+  "eeg-display": EEGDisplay,
+  "brain-topo": BrainTopography,
+  "hpa-stress": HPAAxisPanel,
+  "affect-circuits": AffectCircuitsPanel,
+  "dopamine-system": DopaminePanel,
+  "circadian-rhythm": CircadianPanel,
+  "cortical-cognitive": CognitivePanel,
 };
 
 // ── Renderer ───────────────────────────────────────────────────────────────

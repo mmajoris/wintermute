@@ -17,6 +17,13 @@ export const PANEL_REGISTRY: PanelDef[] = [
   { id: "neurochemistry", label: "Neurochemistry" },
   { id: "traces", label: "Signal Traces" },
   { id: "events", label: "Event Stream" },
+  { id: "eeg-display", label: "EEG Monitor" },
+  { id: "brain-topo", label: "qEEG Topography" },
+  { id: "hpa-stress", label: "HPA Axis & Stress" },
+  { id: "affect-circuits", label: "Affect Circuits" },
+  { id: "dopamine-system", label: "Dopamine System" },
+  { id: "circadian-rhythm", label: "Circadian & Homeostasis" },
+  { id: "cortical-cognitive", label: "Cognitive & Memory" },
 ];
 
 export function getPanelLabel(id: string): string {
@@ -47,12 +54,27 @@ const DEFAULT_LAYOUT: SidebarLayout = {
       label: "Default",
       panels: ["vitals", "synaptic-activity", "cognitive-state", "regions"],
     },
+    {
+      id: "neuro",
+      label: "Neuro",
+      panels: ["affect-circuits", "hpa-stress", "dopamine-system"],
+    },
   ],
   right: [
     {
       id: "default",
       label: "Default",
       panels: ["radial", "neurochemistry", "traces", "events"],
+    },
+    {
+      id: "eeg",
+      label: "EEG",
+      panels: ["eeg-display", "brain-topo"],
+    },
+    {
+      id: "clinical",
+      label: "Clinical",
+      panels: ["circadian-rhythm", "cortical-cognitive"],
     },
   ],
   activeLeft: "default",
@@ -128,6 +150,13 @@ export const usePanelLayout = create<PanelLayoutStore>()(
     }),
     {
       name: "wintermute:panel-layout",
+      version: 2,
+      migrate: (persisted: unknown, version: number) => {
+        if (version < 2) {
+          return DEFAULT_LAYOUT;
+        }
+        return persisted as PanelLayoutStore;
+      },
     },
   ),
 );

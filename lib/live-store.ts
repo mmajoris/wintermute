@@ -10,6 +10,17 @@ import type {
   SystemVitalsEvent,
   ThalamicGateEvent,
   ThoughtLoopTickEvent,
+  AffectCircuitsEvent,
+  DopamineStateEvent,
+  HpaAxisStateEvent,
+  EndorphinDynamicsEvent,
+  CircadianStateEvent,
+  CorticalModulationStateEvent,
+  OscillationStateEvent,
+  HomeostasisStateEvent,
+  DriveStatesEvent,
+  MoodSnapshotEvent,
+  ConsolidationStatsEvent,
 } from "./brain-events";
 import {
   getRegionForCollection,
@@ -93,6 +104,19 @@ export interface LiveStore {
   lastThalamicGate: ThalamicGateEvent | null;
   lastCascade: HippocampalCascadeEvent | null;
 
+  affectCircuits: AffectCircuitsEvent | null;
+  dopamineState: DopamineStateEvent | null;
+  hpaAxisState: HpaAxisStateEvent | null;
+  endorphinDynamics: EndorphinDynamicsEvent | null;
+  circadianState: CircadianStateEvent | null;
+  corticalModulation: CorticalModulationStateEvent | null;
+  oscillationState: OscillationStateEvent | null;
+  homeostasisState: HomeostasisStateEvent | null;
+  driveStates: DriveStatesEvent | null;
+  moodSnapshot: MoodSnapshotEvent | null;
+  consolidationStats: ConsolidationStatsEvent | null;
+  moodHistory: Array<{ timestamp: string; valence: number; arousal: number; dominance: number }>;
+
   selectedRegionId: string | null;
   hoveredRegionId: string | null;
 
@@ -143,6 +167,19 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   lastLLMCall: null,
   lastThalamicGate: null,
   lastCascade: null,
+
+  affectCircuits: null,
+  dopamineState: null,
+  hpaAxisState: null,
+  endorphinDynamics: null,
+  circadianState: null,
+  corticalModulation: null,
+  oscillationState: null,
+  homeostasisState: null,
+  driveStates: null,
+  moodSnapshot: null,
+  consolidationStats: null,
+  moodHistory: [],
 
   selectedRegionId: null,
   hoveredRegionId: null,
@@ -359,6 +396,88 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
         if (neuro.norepinephrine_mode === "high_tonic") {
           activateRegion(newRegionActivity, "locus-coeruleus", now, "high_arousal");
         }
+        break;
+      }
+
+      case "affect_circuits": {
+        updates.affectCircuits = event as AffectCircuitsEvent;
+        activateRegion(newRegionActivity, "amygdala", now, "affect_circuits");
+        activateRegion(newRegionActivity, "hypothalamus", now, "affect_circuits");
+        const ac = event as AffectCircuitsEvent;
+        if (ac.circuits.fear.phasic > 0.5) activateRegion(newRegionActivity, "midbrain", now, "fear_pag");
+        if (ac.circuits.seeking.phasic > 0.5) activateRegion(newRegionActivity, "nucleus-accumbens", now, "seeking_drive");
+        break;
+      }
+
+      case "dopamine_state": {
+        const da = event as DopamineStateEvent;
+        updates.dopamineState = da;
+        updates.dopamineLevel = Math.max(0, Math.min(1, da.tonic + da.phasic * 0.5));
+        activateRegion(newRegionActivity, "nucleus-accumbens", now, "dopamine");
+        activateRegion(newRegionActivity, "substantia-nigra", now, "vta_firing");
+        break;
+      }
+
+      case "hpa_axis_state": {
+        updates.hpaAxisState = event as HpaAxisStateEvent;
+        activateRegion(newRegionActivity, "hypothalamus", now, "hpa_crh");
+        const hpa = event as HpaAxisStateEvent;
+        if (hpa.cortisol > 0.7) activateRegion(newRegionActivity, "amygdala", now, "hpa_stress");
+        break;
+      }
+
+      case "endorphin_dynamics": {
+        updates.endorphinDynamics = event as EndorphinDynamicsEvent;
+        activateRegion(newRegionActivity, "midbrain", now, "pag_endorphin");
+        break;
+      }
+
+      case "circadian_state": {
+        updates.circadianState = event as CircadianStateEvent;
+        activateRegion(newRegionActivity, "hypothalamus", now, "scn_oscillator");
+        break;
+      }
+
+      case "cortical_modulation_state": {
+        updates.corticalModulation = event as CorticalModulationStateEvent;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "cortical_mod");
+        activateRegion(newRegionActivity, "right-hemisphere", now, "cortical_mod");
+        break;
+      }
+
+      case "oscillation_state": {
+        updates.oscillationState = event as OscillationStateEvent;
+        activateRegion(newRegionActivity, "thalamus", now, "oscillation_drive");
+        activateRegion(newRegionActivity, "left-hemisphere", now, "cortical_osc");
+        activateRegion(newRegionActivity, "right-hemisphere", now, "cortical_osc");
+        break;
+      }
+
+      case "homeostasis_state": {
+        updates.homeostasisState = event as HomeostasisStateEvent;
+        activateRegion(newRegionActivity, "hypothalamus", now, "homeostasis");
+        break;
+      }
+
+      case "drive_states": {
+        updates.driveStates = event as DriveStatesEvent;
+        const ds = event as DriveStatesEvent;
+        if (ds.seeking_drive > 0.6) activateRegion(newRegionActivity, "nucleus-accumbens", now, "seeking");
+        if (ds.social_drive > 0.6) activateRegion(newRegionActivity, "amygdala", now, "social_drive");
+        break;
+      }
+
+      case "mood_snapshot": {
+        const ms = event as MoodSnapshotEvent;
+        updates.moodSnapshot = ms;
+        const history = [...state.moodHistory, { timestamp: ms.timestamp, valence: ms.valence, arousal: ms.arousal, dominance: ms.dominance }];
+        updates.moodHistory = history.slice(-60);
+        break;
+      }
+
+      case "consolidation_stats": {
+        updates.consolidationStats = event as ConsolidationStatsEvent;
+        activateRegion(newRegionActivity, "hippocampus", now, "consolidation");
         break;
       }
     }

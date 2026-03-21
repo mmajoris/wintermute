@@ -173,6 +173,10 @@ export interface NeurochemistryStateEvent {
   norepinephrine_tonic?: number;
   norepinephrine_phasic?: number;
   norepinephrine_mode?: NorepinephrineMode;
+  dopamine_tonic?: number;
+  dopamine_phasic?: number;
+  arousal?: number;
+  wake_maintenance_drive?: number;
   source_region:
     | "paraventricular_nucleus"
     | "hpa_axis"
@@ -183,6 +187,151 @@ export interface NeurochemistryStateEvent {
     | "multi_system"
     | "distributed_neuromodulatory_systems";
 }
+
+// ── Affect Circuits (Panksepp 7) ──────────────────────────────────────────
+
+export interface AffectCircuitLevel {
+  phasic: number;
+  tonic: number;
+}
+
+export interface AffectCircuitsEvent {
+  type: "affect_circuits";
+  timestamp: string;
+  circuits: {
+    seeking: AffectCircuitLevel;
+    rage: AffectCircuitLevel;
+    fear: AffectCircuitLevel;
+    lust: AffectCircuitLevel;
+    care: AffectCircuitLevel;
+    panic_grief: AffectCircuitLevel;
+    play: AffectCircuitLevel;
+  };
+  valence: number;
+  arousal: number;
+  dominance: number;
+}
+
+// ── Dopamine State (VTA / NAc) ───────────────────────────────────────────
+
+export interface DopamineStateEvent {
+  type: "dopamine_state";
+  timestamp: string;
+  tonic: number;
+  phasic: number;
+  learning_signal: number;
+  reward_prediction_error: number;
+  vta_firing_rate: number;
+  nac_activity: number;
+}
+
+// ── HPA Axis State ───────────────────────────────────────────────────────
+
+export interface HpaAxisStateEvent {
+  type: "hpa_axis_state";
+  timestamp: string;
+  crh: number;
+  acth: number;
+  cortisol: number;
+  npy: number;
+  mr_occupancy: number;
+  gr_occupancy: number;
+  feedback_gain: number;
+  chronic_load: number;
+}
+
+// ── Endorphin Dynamics (PAG) ─────────────────────────────────────────────
+
+export interface EndorphinDynamicsEvent {
+  type: "endorphin_dynamics";
+  timestamp: string;
+  level: number;
+  effort: number;
+  refractory: number;
+}
+
+// ── Circadian State (SCN oscillator) ─────────────────────────────────────
+
+export interface CircadianStateEvent {
+  type: "circadian_state";
+  timestamp: string;
+  theta: number;
+  circadian_time: number;
+  alertness: number;
+  sleep_pressure: number;
+}
+
+// ── Cortical Modulation State ────────────────────────────────────────────
+
+export interface CorticalModulationStateEvent {
+  type: "cortical_modulation_state";
+  timestamp: string;
+  processing_speed: number;
+  error_rate: number;
+  pfc_capacity: number;
+  regulation_capacity: number;
+}
+
+// ── Oscillation State (EEG equivalent, 22 populations) ──────────────────
+
+export interface OscillationPopulation {
+  id: string;
+  amplitude: number;
+  frequency: number;
+  ei_ratio: number;
+  coherence: number;
+}
+
+export interface OscillationStateEvent {
+  type: "oscillation_state";
+  timestamp: string;
+  populations: OscillationPopulation[];
+}
+
+// ── Homeostasis State ────────────────────────────────────────────────────
+
+export type AllostaticMode = "homeostatic" | "allostatic" | "allostatic_overload";
+
+export interface HomeostasisStateEvent {
+  type: "homeostasis_state";
+  timestamp: string;
+  operating_mode: AllostaticMode;
+  resource_utilization: number;
+}
+
+// ── Drive States ─────────────────────────────────────────────────────────
+
+export interface DriveStatesEvent {
+  type: "drive_states";
+  timestamp: string;
+  social_drive: number;
+  seeking_drive: number;
+  novelty_hunger: number;
+}
+
+// ── Mood Snapshot ────────────────────────────────────────────────────────
+
+export interface MoodSnapshotEvent {
+  type: "mood_snapshot";
+  timestamp: string;
+  valence: number;
+  arousal: number;
+  dominance: number;
+}
+
+// ── Consolidation Stats ──────────────────────────────────────────────────
+
+export interface ConsolidationStatsEvent {
+  type: "consolidation_stats";
+  timestamp: string;
+  consolidated: number;
+  decayed: number;
+  forgotten: number;
+  replayed: number;
+  neurogenesis: number;
+}
+
+// ── Union & Helpers ──────────────────────────────────────────────────────
 
 export type BrainEvent =
   | ThoughtLoopTickEvent
@@ -200,7 +349,18 @@ export type BrainEvent =
   | ThalamicGateEvent
   | HippocampalCascadeEvent
   | LLMCallEvent
-  | NeurochemistryStateEvent;
+  | NeurochemistryStateEvent
+  | AffectCircuitsEvent
+  | DopamineStateEvent
+  | HpaAxisStateEvent
+  | EndorphinDynamicsEvent
+  | CircadianStateEvent
+  | CorticalModulationStateEvent
+  | OscillationStateEvent
+  | HomeostasisStateEvent
+  | DriveStatesEvent
+  | MoodSnapshotEvent
+  | ConsolidationStatsEvent;
 
 export interface BrainEventEnvelope {
   id: string;
@@ -208,25 +368,38 @@ export interface BrainEventEnvelope {
   received_at: string;
 }
 
+const VALID_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "thought_loop_tick",
+  "collection_activity",
+  "worker_activity",
+  "queue_metrics",
+  "emotional_state",
+  "soul_cycle",
+  "action_dispatch",
+  "system_vitals",
+  "budget_status",
+  "memory_event",
+  "reward_signal",
+  "error_correction",
+  "thalamic_gate",
+  "hippocampal_cascade",
+  "llm_call",
+  "neurochemistry_state",
+  "affect_circuits",
+  "dopamine_state",
+  "hpa_axis_state",
+  "endorphin_dynamics",
+  "circadian_state",
+  "cortical_modulation_state",
+  "oscillation_state",
+  "homeostasis_state",
+  "drive_states",
+  "mood_snapshot",
+  "consolidation_stats",
+]);
+
 export function isBrainEvent(obj: unknown): obj is BrainEvent {
   if (!obj || typeof obj !== "object") return false;
   const event = obj as { type?: string };
-  return typeof event.type === "string" && [
-    "thought_loop_tick",
-    "collection_activity",
-    "worker_activity",
-    "queue_metrics",
-    "emotional_state",
-    "soul_cycle",
-    "action_dispatch",
-    "system_vitals",
-    "budget_status",
-    "memory_event",
-    "reward_signal",
-    "error_correction",
-    "thalamic_gate",
-    "hippocampal_cascade",
-    "llm_call",
-    "neurochemistry_state",
-  ].includes(event.type);
+  return typeof event.type === "string" && VALID_EVENT_TYPES.has(event.type);
 }
