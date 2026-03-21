@@ -6,10 +6,8 @@ import { BracketFrame, HudSectionTitle } from "./BracketFrame";
 import HudBarChart, { BarData } from "@/components/ui/HudBarChart";
 
 export default function LiveStatsPanel() {
-  const { systemVitals, eventsPerSecond, dopamineLevel, emotionalState } =
+  const { systemVitals, eventsPerSecond, dopamineLevel, emotionalState, connected: online } =
     useLiveStore();
-
-  const online = eventsPerSecond > 0;
 
   const stats: BarData[] = useMemo(() => {
     if (!online) {

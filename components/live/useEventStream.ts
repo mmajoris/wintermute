@@ -14,6 +14,7 @@ export function useEventStream() {
     useLiveStore();
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const disconnectDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const eventCountRef = useRef(0);
   const lastCountTimeRef = useRef(Date.now());
   const smoothedRateRef = useRef(0);
@@ -33,6 +34,10 @@ export function useEventStream() {
 
       eventSource.onopen = () => {
         if (!mounted) return;
+        if (disconnectDebounceRef.current) {
+          clearTimeout(disconnectDebounceRef.current);
+          disconnectDebounceRef.current = null;
+        }
         setConnected(true);
         startBaselineActivity();
         console.log("[live] Connected to event stream");
@@ -57,9 +62,19 @@ export function useEventStream() {
 
       eventSource.onerror = () => {
         if (!mounted) return;
-        setConnected(false, "Connection lost");
-        stopBaselineActivity();
         eventSource.close();
+
+        // Debounce the disconnect — don't flash offline for momentary hiccups.
+        // Only mark disconnected if we can't reconnect within 5 seconds.
+        if (!disconnectDebounceRef.current) {
+          disconnectDebounceRef.current = setTimeout(() => {
+            if (mounted) {
+              setConnected(false, "Connection lost");
+              stopBaselineActivity();
+            }
+            disconnectDebounceRef.current = null;
+          }, 5000);
+        }
 
         reconnectTimeoutRef.current = setTimeout(() => {
           if (mounted) {
@@ -98,6 +113,9 @@ export function useEventStream() {
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (disconnectDebounceRef.current) {
+        clearTimeout(disconnectDebounceRef.current);
       }
       clearInterval(rateInterval);
       stopBaselineActivity();

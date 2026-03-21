@@ -70,7 +70,7 @@ export default function EEGDisplay() {
   const oscRef = useRef(oscState);
   oscRef.current = oscState;
 
-  const connected = useLiveStore((s) => s.eventsPerSecond > 0);
+  const connected = useLiveStore((s) => s.connected);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;

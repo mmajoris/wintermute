@@ -53,7 +53,7 @@ export default function FMRIViewer() {
   const maskRef = useRef<LoadedVolume | null>(null);
 
   const regionActivity = useLiveStore((s) => s.regionActivity);
-  const connected = useLiveStore((s) => s.eventsPerSecond > 0);
+  const connected = useLiveStore((s) => s.connected);
 
   useEffect(() => {
     setLoading(true);

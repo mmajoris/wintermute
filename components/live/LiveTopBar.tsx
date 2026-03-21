@@ -54,6 +54,7 @@ function useMollyState(): { state: MollyState; loading: boolean } {
   const [state, setState] = useState<MollyState>("unknown");
   const [loading, setLoading] = useState(true);
   const eventsPerSecond = useLiveStore((s) => s.eventsPerSecond);
+  const sseConnected = useLiveStore((s) => s.connected);
 
   const poll = useCallback(async () => {
     try {
@@ -91,10 +92,10 @@ function useMollyState(): { state: MollyState; loading: boolean } {
 
   // Fallback: if we've never gotten a vm-status but events are flowing, she's awake
   useEffect(() => {
-    if (state === "unknown" && eventsPerSecond > 0) {
+    if (state === "unknown" && sseConnected) {
       setState("awake");
     }
-  }, [state, eventsPerSecond]);
+  }, [state, sseConnected]);
 
   return { state, loading };
 }
