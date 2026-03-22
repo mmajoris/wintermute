@@ -88,7 +88,7 @@ function buildPowerMap(populations: OscillationPopulation[] | undefined): Map<st
 
 export default function BrainTopography() {
   const oscillationState = useLiveStore((s) => s.oscillationState);
-  const connected = useLiveStore((s) => s.connected);
+  const connected = useLiveStore((s) => s.mollyAwake);
 
   const powerMap = useMemo(() => buildPowerMap(oscillationState?.populations), [oscillationState]);
 

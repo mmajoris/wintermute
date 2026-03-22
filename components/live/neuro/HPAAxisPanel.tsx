@@ -68,7 +68,7 @@ function ReceptorGauge({ label, value, color }: { label: string; value: number; 
 export default function HPAAxisPanel() {
   const hpa = useLiveStore((s) => s.hpaAxisState);
   const endorphin = useLiveStore((s) => s.endorphinDynamics);
-  const connected = useLiveStore((s) => s.connected);
+  const connected = useLiveStore((s) => s.mollyAwake);
 
   const online = connected && (hpa !== null || endorphin !== null);
 

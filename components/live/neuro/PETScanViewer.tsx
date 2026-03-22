@@ -57,7 +57,7 @@ export default function PETScanViewer() {
 
   const metaRef = useRef<AtlasMeta | null>(null);
   const volsRef = useRef<{ t1: LoadedVolume; gm: LoadedVolume; wm: LoadedVolume; csf: LoadedVolume } | null>(null);
-  const connected = useLiveStore((s) => s.connected);
+  const connected = useLiveStore((s) => s.mollyAwake);
 
   useEffect(() => {
     setLoading(true);

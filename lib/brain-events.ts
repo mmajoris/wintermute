@@ -331,6 +331,15 @@ export interface ConsolidationStatsEvent {
   neurogenesis: number;
 }
 
+// ── System Status (wake/sleep) ───────────────────────────────────────────
+
+export interface SystemStatusEvent {
+  type: "system_status";
+  timestamp: string;
+  status: "awake" | "sleeping";
+  reason?: string;
+}
+
 // ── Union & Helpers ──────────────────────────────────────────────────────
 
 export type BrainEvent =
@@ -360,7 +369,8 @@ export type BrainEvent =
   | HomeostasisStateEvent
   | DriveStatesEvent
   | MoodSnapshotEvent
-  | ConsolidationStatsEvent;
+  | ConsolidationStatsEvent
+  | SystemStatusEvent;
 
 export interface BrainEventEnvelope {
   id: string;
@@ -396,6 +406,7 @@ const VALID_EVENT_TYPES: ReadonlySet<string> = new Set([
   "drive_states",
   "mood_snapshot",
   "consolidation_stats",
+  "system_status",
 ]);
 
 export function isBrainEvent(obj: unknown): obj is BrainEvent {

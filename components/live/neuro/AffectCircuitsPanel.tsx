@@ -74,7 +74,7 @@ export default function AffectCircuitsPanel() {
   const affectCircuits = useLiveStore((s) => s.affectCircuits);
   const moodSnapshot = useLiveStore((s) => s.moodSnapshot);
   const moodHistory = useLiveStore((s) => s.moodHistory);
-  const connected = useLiveStore((s) => s.connected);
+  const connected = useLiveStore((s) => s.mollyAwake);
 
   const circuits = affectCircuits?.circuits;
 

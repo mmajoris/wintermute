@@ -106,7 +106,7 @@ function PathwayDiagram({ vtaRate, nacActivity }: { vtaRate: number; nacActivity
 
 export default function DopaminePanel() {
   const dopamineState = useLiveStore((s) => s.dopamineState);
-  const connected = useLiveStore((s) => s.connected);
+  const connected = useLiveStore((s) => s.mollyAwake);
   if (dopamineState) {
     tonicHistory.push(dopamineState.tonic);
     if (tonicHistory.length > TONIC_HISTORY_LEN) tonicHistory.shift();

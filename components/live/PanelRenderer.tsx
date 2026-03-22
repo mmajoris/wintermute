@@ -180,6 +180,7 @@ function EventIcon({ type }: { type: BrainEvent["type"] }) {
     drive_states: { icon: "\u27A4", color: "#ec4899" },
     mood_snapshot: { icon: "\u263A", color: "#fbbf24" },
     consolidation_stats: { icon: "\u29C9", color: "#14b8a6" },
+    system_status: { icon: "\u23FB", color: "#22c55e" },
   };
   const { icon, color } = icons[type] ?? { icon: "\u2022", color: "#666" };
   return <span className="text-xs" style={{ color }}>{icon}</span>;
@@ -209,6 +210,7 @@ function EventSummary({ event }: { event: BrainEvent }) {
     case "drive_states": return <span>Drives seek:{(event.seeking_drive * 100).toFixed(0)}% social:{(event.social_drive * 100).toFixed(0)}%</span>;
     case "mood_snapshot": return <span>Mood V:{event.valence.toFixed(2)} A:{event.arousal.toFixed(2)} D:{event.dominance.toFixed(2)}</span>;
     case "consolidation_stats": return <span>Memory +{event.consolidated} -{event.forgotten} replay:{event.replayed}</span>;
+    case "system_status": return <span>System: <span className={event.status === "awake" ? "text-emerald-400" : "text-blue-400"}>{event.status}</span></span>;
     default: return <span>{event.type}</span>;
   }
 }

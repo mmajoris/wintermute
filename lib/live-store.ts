@@ -8,6 +8,7 @@ import type {
   LLMCallEvent,
   NeurochemistryStateEvent,
   SystemVitalsEvent,
+  SystemStatusEvent,
   ThalamicGateEvent,
   ThoughtLoopTickEvent,
   AffectCircuitsEvent,
@@ -117,6 +118,9 @@ export interface LiveStore {
   consolidationStats: ConsolidationStatsEvent | null;
   moodHistory: Array<{ timestamp: string; valence: number; arousal: number; dominance: number }>;
 
+  lastEventAt: number;
+  mollyAwake: boolean;
+
   selectedRegionId: string | null;
   hoveredRegionId: string | null;
 
@@ -180,6 +184,8 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   moodSnapshot: null,
   consolidationStats: null,
   moodHistory: [],
+  lastEventAt: 0,
+  mollyAwake: false,
 
   selectedRegionId: null,
   hoveredRegionId: null,
@@ -198,7 +204,12 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
       -state.maxRecentEvents
     );
 
-    const updates: Partial<LiveStore> = { recentEvents: newRecentEvents, totalEventCount: state.totalEventCount + 1 };
+    const updates: Partial<LiveStore> = {
+      recentEvents: newRecentEvents,
+      totalEventCount: state.totalEventCount + 1,
+      lastEventAt: now,
+      mollyAwake: true,
+    };
     const newRegionActivity = new Map(state.regionActivity);
     const newActiveWorkers = new Map(state.activeWorkers);
     const newQueueStatus = new Map(state.queueStatus);
@@ -478,6 +489,12 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
       case "consolidation_stats": {
         updates.consolidationStats = event as ConsolidationStatsEvent;
         activateRegion(newRegionActivity, "hippocampus", now, "consolidation");
+        break;
+      }
+
+      case "system_status": {
+        const ss = event as SystemStatusEvent;
+        updates.mollyAwake = ss.status === "awake";
         break;
       }
     }

@@ -151,7 +151,7 @@ function MetricBar({ label, value, color, warningThreshold }: {
 export default function CircadianPanel() {
   const circadian = useLiveStore((s) => s.circadianState);
   const homeostasis = useLiveStore((s) => s.homeostasisState);
-  const connected = useLiveStore((s) => s.connected);
+  const connected = useLiveStore((s) => s.mollyAwake);
 
   const online = connected && (circadian !== null || homeostasis !== null);
 

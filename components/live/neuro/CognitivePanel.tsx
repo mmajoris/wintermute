@@ -53,7 +53,7 @@ export default function CognitivePanel() {
   const cortical = useLiveStore((s) => s.corticalModulation);
   const consolidation = useLiveStore((s) => s.consolidationStats);
   const drives = useLiveStore((s) => s.driveStates);
-  const connected = useLiveStore((s) => s.connected);
+  const connected = useLiveStore((s) => s.mollyAwake);
 
   const online = connected && (cortical !== null || consolidation !== null || drives !== null);
 

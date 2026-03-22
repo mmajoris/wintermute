@@ -67,7 +67,7 @@ function MoleculeBar({
 }
 
 export default function NeurochemistryPanel() {
-  const { neurochemistryState, dopamineLevel, connected: online } = useLiveStore();
+  const { neurochemistryState, dopamineLevel, mollyAwake: online } = useLiveStore();
 
   return (
     <BracketFrame variant="detail-3" className="p-4 flex-1 min-h-0 overflow-y-auto hud-scrollbar">
