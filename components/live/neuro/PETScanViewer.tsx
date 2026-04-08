@@ -7,10 +7,12 @@ import {
   loadAtlasMeta,
   extractSlice,
   getSliceRange,
+  voxelToMni,
   type SlicePlane,
   type AtlasMeta,
   type LoadedVolume,
 } from "@/lib/volume-atlas";
+import { BRAIN_REGIONS_3D } from "@/lib/brain-anatomy-3d";
 import { BracketFrame, HudSectionTitle } from "../BracketFrame";
 import ClinicalImageViewer, { ExpandButton } from "./ClinicalImageViewer";
 
@@ -23,6 +25,10 @@ const TRACER_INFO: Record<Tracer, { label: string; description: string; color: s
   Amyloid: { label: "\u00B9\u2078F-Florbetapir", description: "Amyloid plaque", color: "#ec4899" },
 };
 
+const STRIATAL_STORE_IDS = new Set([
+  "caudate-nucleus", "putamen", "globus-pallidus", "nucleus-accumbens",
+]);
+
 function hotColormap(t: number): [number, number, number] {
   const v = Math.max(0, Math.min(1, t));
   if (v < 0.33) return [Math.round((v / 0.33) * 180), 0, Math.round((v / 0.33) * 40)];
@@ -34,7 +40,18 @@ function hotColormap(t: number): [number, number, number] {
   return [255, 180 + Math.round(s * 75), Math.round(s * 255)];
 }
 
-function computeUptake(gm: number, wm: number, csf: number, tracer: Tracer): number {
+function ellipsoidDist(
+  px: number, py: number, pz: number,
+  cx: number, cy: number, cz: number,
+  rx: number, ry: number, rz: number,
+): number {
+  const dx = (px - cx) / rx;
+  const dy = (py - cy) / ry;
+  const dz = (pz - cz) / rz;
+  return dx * dx + dy * dy + dz * dz;
+}
+
+function computeBaseUptake(gm: number, wm: number, csf: number, tracer: Tracer): number {
   const total = gm + wm + csf;
   if (total < 10) return 0;
   const gmN = gm / 255, wmN = wm / 255, csfN = csf / 255;
@@ -57,7 +74,11 @@ export default function PETScanViewer() {
 
   const metaRef = useRef<AtlasMeta | null>(null);
   const volsRef = useRef<{ t1: LoadedVolume; gm: LoadedVolume; wm: LoadedVolume; csf: LoadedVolume } | null>(null);
+
   const connected = useLiveStore((s) => s.mollyAwake);
+  const regionActivity = useLiveStore((s) => s.regionActivity);
+  const dopamineState = useLiveStore((s) => s.dopamineState);
+  const neurochemState = useLiveStore((s) => s.neurochemistryState);
 
   useEffect(() => {
     setLoading(true);
@@ -77,7 +98,8 @@ export default function PETScanViewer() {
   const renderSlice = useCallback(() => {
     const canvas = canvasRef.current;
     const vols = volsRef.current;
-    if (!canvas || !vols || sliceIdx === null) return;
+    const meta = metaRef.current;
+    if (!canvas || !vols || !meta || sliceIdx === null) return;
 
     const t1Slice = extractSlice(vols.t1, plane, sliceIdx);
     const gmSlice = extractSlice(vols.gm, plane, sliceIdx);
@@ -91,21 +113,81 @@ export default function PETScanViewer() {
     if (!ctx) return;
 
     const imgData = ctx.createImageData(width, height);
+    const activityRegions = BRAIN_REGIONS_3D.filter((r) => r.storeId);
 
-    for (let i = 0; i < t1Slice.pixels.length; i++) {
-      const bgI = t1Slice.pixels[i] * 0.3;
-      const uptake = computeUptake(gmSlice.pixels[i], wmSlice.pixels[i], csfSlice.pixels[i], tracer);
-      const [hr, hg, hb] = hotColormap(uptake);
-      const alpha = uptake > 0.02 ? overlayOpacity : 0;
+    const daTonic = dopamineState?.tonic ?? 0.5;
+    const serotoninLevel = neurochemState?.serotonin ?? 0.5;
 
-      const idx = i * 4;
-      imgData.data[idx] = Math.round(bgI * (1 - alpha) + hr * alpha);
-      imgData.data[idx + 1] = Math.round(bgI * (1 - alpha) + hg * alpha);
-      imgData.data[idx + 2] = Math.round(bgI * (1 - alpha) + hb * alpha);
-      imgData.data[idx + 3] = 255;
+    for (let py = 0; py < height; py++) {
+      for (let px = 0; px < width; px++) {
+        const i = px + py * width;
+        const bgI = t1Slice.pixels[i] * 0.3;
+        let uptake = computeBaseUptake(gmSlice.pixels[i], wmSlice.pixels[i], csfSlice.pixels[i], tracer);
+
+        if (connected && uptake > 0.01 && tracer !== "Amyloid") {
+          let vx: number, vy: number, vz: number;
+          switch (plane) {
+            case "axial":   vx = px; vy = height - 1 - py; vz = sliceIdx; break;
+            case "sagittal": vx = sliceIdx; vy = px; vz = height - 1 - py; break;
+            case "coronal":  vx = px; vy = sliceIdx; vz = height - 1 - py; break;
+          }
+          const [mx, my, mz] = voxelToMni(vx, vy, vz, meta);
+          const bx = mx / 12;
+          const by = my / 12 + 11;
+          const bz = mz / 12 - 0.5;
+
+          let activityMod = 0;
+          for (const region of activityRegions) {
+            const d = ellipsoidDist(
+              bx, by, bz,
+              region.center[0], region.center[1], region.center[2],
+              region.radii[0] * 1.5, region.radii[1] * 1.5, region.radii[2] * 1.5,
+            );
+            if (d >= 1 || !region.storeId) continue;
+            const falloff = 1 - d;
+            const activity = regionActivity.get(region.storeId);
+            const intensity = activity?.intensity ?? 0;
+
+            switch (tracer) {
+              case "FDG":
+                activityMod += intensity * falloff;
+                break;
+              case "DaT":
+                if (STRIATAL_STORE_IDS.has(region.storeId)) {
+                  activityMod += intensity * falloff * daTonic * 2;
+                }
+                break;
+              case "5-HT":
+                activityMod += intensity * falloff * serotoninLevel;
+                break;
+            }
+          }
+
+          switch (tracer) {
+            case "FDG":
+              uptake *= 1 + activityMod * 0.8;
+              break;
+            case "DaT":
+              uptake *= 0.4 + daTonic * 1.2 + activityMod * 0.6;
+              break;
+            case "5-HT":
+              uptake *= 0.4 + serotoninLevel * 1.2 + activityMod * 0.5;
+              break;
+          }
+        }
+
+        const [hr, hg, hb] = hotColormap(uptake);
+        const alpha = uptake > 0.02 ? overlayOpacity : 0;
+
+        const idx = i * 4;
+        imgData.data[idx] = Math.round(bgI * (1 - alpha) + hr * alpha);
+        imgData.data[idx + 1] = Math.round(bgI * (1 - alpha) + hg * alpha);
+        imgData.data[idx + 2] = Math.round(bgI * (1 - alpha) + hb * alpha);
+        imgData.data[idx + 3] = 255;
+      }
     }
     ctx.putImageData(imgData, 0, 0);
-  }, [plane, sliceIdx, tracer, overlayOpacity]);
+  }, [plane, sliceIdx, tracer, overlayOpacity, regionActivity, connected, dopamineState, neurochemState]);
 
   useEffect(() => {
     if (!loading) renderSlice();
@@ -121,7 +203,11 @@ export default function PETScanViewer() {
       <HudSectionTitle>
         PET Scan — {tracerInfo.label}
         <span className="ml-auto flex items-center gap-2">
-          <span className="text-[7px] font-normal" style={{ color: connected ? "#34d399" : "#525252" }}>{connected ? "LIVE" : "STATIC"}</span>
+          <span className="text-[7px] font-normal" style={{ color: connected ? "#34d399" : "#525252" }}>
+            {connected
+              ? tracer === "Amyloid" ? "STRUCTURAL" : "LIVE"
+              : "OFFLINE"}
+          </span>
           <ExpandButton onClick={() => setClinicalOpen(true)} />
         </span>
       </HudSectionTitle>
