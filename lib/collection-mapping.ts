@@ -519,6 +519,254 @@ export function getPathwaysForEvent(
         { pathway: "norepinephrine", intensity: 0.2 },
         { pathway: "dopamine", intensity: 0.2 },
       ];
+
+    // ── Cerebellar / Prediction ─────────────────────────────────────
+
+    case "cerebellar_prediction":
+      return [
+        { pathway: "glutamate", intensity: 0.15 },
+        { pathway: "gaba", intensity: 0.1 },
+      ];
+    case "action_monitoring": {
+      const amOutcome = eventData && (eventData as { outcome?: string }).outcome;
+      const specs: PathwayActivationSpec[] = [
+        { pathway: "glutamate", intensity: 0.5 },
+        { pathway: "gaba", intensity: 0.4 },
+        { pathway: "cingulum-bundle-L", intensity: 0.6 },
+      ];
+      if (amOutcome === "mismatch") {
+        specs.push({ pathway: "norepinephrine", intensity: 0.5 });
+      }
+      return specs;
+    }
+    case "sense_of_agency": {
+      const saAttr = eventData && (eventData as { attribution?: string }).attribution;
+      const specs: PathwayActivationSpec[] = [
+        { pathway: "glutamate", intensity: 0.4 },
+        { pathway: "cingulum-bundle-L", intensity: 0.5 },
+      ];
+      if (saAttr === "externally_caused") {
+        specs.push({ pathway: "norepinephrine", intensity: 0.6 });
+      }
+      return specs;
+    }
+    case "time_perception":
+      return [
+        { pathway: "norepinephrine", intensity: 0.4 },
+        { pathway: "glutamate", intensity: 0.3 },
+      ];
+
+    // ── Executive Control ───────────────────────────────────────────
+
+    case "metacognition": {
+      const mcConflict = eventData && typeof (eventData as { conflict_load?: number }).conflict_load === "number"
+        ? (eventData as { conflict_load: number }).conflict_load : 0;
+      const specs: PathwayActivationSpec[] = [
+        { pathway: "prefrontal-executive-L", intensity: 0.6 },
+        { pathway: "cingulum-bundle-L", intensity: 0.5 },
+      ];
+      if (mcConflict > 0.5) {
+        specs.push({ pathway: "norepinephrine", intensity: 0.5 });
+      }
+      return specs;
+    }
+    case "acc_state": {
+      const accDistress = eventData && typeof (eventData as { distress_level?: number }).distress_level === "number"
+        ? (eventData as { distress_level: number }).distress_level : 0;
+      const specs: PathwayActivationSpec[] = [
+        { pathway: "cingulum-bundle-L", intensity: 0.7 },
+        { pathway: "norepinephrine", intensity: 0.4 },
+      ];
+      if (accDistress > 0.6) {
+        specs.push({ pathway: "serotonin", intensity: 0.5 });
+      }
+      return specs;
+    }
+    case "pfc_regulation":
+      return [
+        { pathway: "prefrontal-executive-L", intensity: 0.7 },
+        { pathway: "uncinate-fasciculus-L", intensity: 0.6 },
+        { pathway: "gaba", intensity: 0.5 },
+      ];
+    case "expression_inhibition": {
+      const eiOutcome = eventData && (eventData as { outcome?: string }).outcome;
+      const specs: PathwayActivationSpec[] = [
+        { pathway: "prefrontal-executive-L", intensity: 0.6 },
+        { pathway: "gaba", intensity: 0.7 },
+      ];
+      if (eiOutcome === "expressed") {
+        specs.push({ pathway: "glutamate", intensity: 0.5 });
+      }
+      return specs;
+    }
+    case "cognitive_flexibility":
+      return [
+        { pathway: "thalamocortical-radiation-L", intensity: 0.6 },
+        { pathway: "prefrontal-executive-L", intensity: 0.5 },
+      ];
+    case "cognitive_fatigue":
+      return [
+        { pathway: "prefrontal-executive-L", intensity: 0.3 },
+        { pathway: "norepinephrine", intensity: 0.2 },
+      ];
+
+    // ── Decision & Strategy ─────────────────────────────────────────
+
+    case "basal_ganglia_strategy": {
+      const bgPE = eventData && (eventData as { prediction_error?: number }).prediction_error;
+      const specs: PathwayActivationSpec[] = [
+        { pathway: "dopamine", intensity: 0.6 },
+        { pathway: "gaba", intensity: 0.5 },
+      ];
+      if (bgPE !== undefined && bgPE !== null) {
+        specs.push({ pathway: "dopamine", intensity: 0.4 });
+      }
+      return specs;
+    }
+    case "value_comparison":
+      return [
+        { pathway: "dopamine", intensity: 0.5 },
+        { pathway: "prefrontal-executive-L", intensity: 0.6 },
+      ];
+    case "moral_reasoning":
+      return [
+        { pathway: "prefrontal-executive-L", intensity: 0.6 },
+        { pathway: "uncinate-fasciculus-L", intensity: 0.5 },
+        { pathway: "cingulum-bundle-L", intensity: 0.5 },
+      ];
+
+    // ── Social / Mentalizing ────────────────────────────────────────
+
+    case "theory_of_mind":
+      return [
+        { pathway: "superior-longitudinal-fasciculus-L", intensity: 0.5 },
+        { pathway: "callosal-prefrontal", intensity: 0.6 },
+      ];
+    case "self_presentation":
+      return [
+        { pathway: "prefrontal-executive-L", intensity: 0.5 },
+        { pathway: "uncinate-fasciculus-L", intensity: 0.4 },
+      ];
+    case "cognitive_empathy":
+      return [
+        { pathway: "uncinate-fasciculus-L", intensity: 0.6 },
+        { pathway: "cingulum-bundle-L", intensity: 0.5 },
+      ];
+    case "social_learning":
+      return [
+        { pathway: "dopamine", intensity: 0.4 },
+        { pathway: "cingulum-bundle-L", intensity: 0.4 },
+      ];
+
+    // ── Salience / Global Workspace ─────────────────────────────────
+
+    case "salience_evaluation": {
+      const seOutcome = eventData && (eventData as { outcome?: string }).outcome;
+      const specs: PathwayActivationSpec[] = [
+        { pathway: "norepinephrine", intensity: 0.6 },
+        { pathway: "cingulum-bundle-L", intensity: 0.5 },
+      ];
+      if (seOutcome === "pass") {
+        specs.push({ pathway: "thalamocortical-radiation-L", intensity: 0.6 });
+      }
+      return specs;
+    }
+    case "network_switch":
+      return [
+        { pathway: "cingulum-bundle-L", intensity: 0.6 },
+        { pathway: "thalamocortical-radiation-L", intensity: 0.5 },
+        { pathway: "thalamocortical-radiation-R", intensity: 0.5 },
+      ];
+    case "phenomenal_binding": {
+      const pbAdmitted = eventData && (eventData as { content_admitted?: boolean }).content_admitted;
+      const specs: PathwayActivationSpec[] = [
+        { pathway: "thalamocortical-radiation-L", intensity: 0.5 },
+        { pathway: "thalamocortical-radiation-R", intensity: 0.5 },
+      ];
+      if (pbAdmitted) {
+        specs.push(
+          { pathway: "callosal-prefrontal", intensity: 0.7 },
+          { pathway: "glutamate", intensity: 0.6 },
+        );
+      }
+      return specs;
+    }
+    case "vigilance":
+      return [
+        { pathway: "norepinephrine", intensity: 0.5 },
+        { pathway: "thalamocortical-radiation-L", intensity: 0.3 },
+      ];
+
+    // ── Body / Stress ───────────────────────────────────────────────
+
+    case "bnst_state":
+      return [
+        { pathway: "norepinephrine", intensity: 0.5 },
+        { pathway: "uncinate-fasciculus-L", intensity: 0.4 },
+      ];
+    case "autonomic_balance":
+      return [
+        { pathway: "norepinephrine", intensity: 0.3 },
+        { pathway: "serotonin", intensity: 0.3 },
+      ];
+
+    // ── Memory / Hippocampal ────────────────────────────────────────
+
+    case "dentate_gyrus_neurogenesis":
+      return [
+        { pathway: "acetylcholine", intensity: 0.4 },
+        { pathway: "cingulum-bundle-L", intensity: 0.3 },
+      ];
+    case "directed_forgetting":
+      return [
+        { pathway: "gaba", intensity: 0.6 },
+        { pathway: "prefrontal-executive-L", intensity: 0.5 },
+      ];
+    case "metamemory":
+      return [
+        { pathway: "acetylcholine", intensity: 0.5 },
+        { pathway: "prefrontal-executive-L", intensity: 0.4 },
+      ];
+    case "source_monitoring":
+      return [
+        { pathway: "acetylcholine", intensity: 0.4 },
+        { pathway: "prefrontal-executive-L", intensity: 0.4 },
+      ];
+    case "statistical_learning":
+      return [
+        { pathway: "acetylcholine", intensity: 0.4 },
+        { pathway: "dopamine", intensity: 0.3 },
+      ];
+    case "prospective_memory":
+      return [
+        { pathway: "prefrontal-executive-L", intensity: 0.5 },
+        { pathway: "cingulum-bundle-L", intensity: 0.4 },
+      ];
+    case "goal_plan":
+      return [
+        { pathway: "prefrontal-executive-L", intensity: 0.6 },
+        { pathway: "dopamine", intensity: 0.4 },
+      ];
+
+    // ── Action / IO ─────────────────────────────────────────────────
+
+    case "tool_execution":
+      return [
+        { pathway: "glutamate", intensity: 0.6 },
+        { pathway: "prefrontal-executive-L", intensity: 0.7 },
+        { pathway: "corticospinal-L", intensity: 0.5 },
+      ];
+    case "telegram_message":
+      return [
+        { pathway: "arcuate-fasciculus-L", intensity: 0.7 },
+        { pathway: "thalamocortical-radiation-L", intensity: 0.5 },
+      ];
+    case "interoception_signal":
+      return [
+        { pathway: "cingulum-bundle-L", intensity: 0.5 },
+        { pathway: "norepinephrine", intensity: 0.4 },
+      ];
+
     default:
       return [];
   }
