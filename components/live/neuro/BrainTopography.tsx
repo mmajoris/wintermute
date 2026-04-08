@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useLiveStore } from "@/lib/live-store";
-import type { OscillationPopulation } from "@/lib/brain-events";
+import type { OscillationPopulationSnapshot } from "@/lib/brain-events";
 import { BracketFrame, HudSectionTitle } from "../BracketFrame";
 
 interface ElectrodePos {
@@ -73,7 +73,7 @@ function powerToColor(power: number): string {
   return `rgb(${Math.round(230 + s * 25)}, ${Math.round(240 - s * 140)}, ${Math.round(40 - s * 30)})`;
 }
 
-function buildPowerMap(populations: OscillationPopulation[] | undefined): Map<string, number> {
+function buildPowerMap(populations: OscillationPopulationSnapshot[] | undefined): Map<string, number> {
   const map = new Map<string, number>();
   if (!populations) {
     for (const e of ELECTRODES) map.set(e.id, 0.3);

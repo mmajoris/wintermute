@@ -114,7 +114,7 @@ export default function DopaminePanel() {
     phasicHistory.push(dopamineState.phasic);
     if (phasicHistory.length > PHASIC_HISTORY_LEN) phasicHistory.shift();
 
-    rpeHistory.push(dopamineState.reward_prediction_error);
+    rpeHistory.push(dopamineState.last_prediction_error);
     if (rpeHistory.length > RPE_HISTORY_LEN) rpeHistory.shift();
   }
 
@@ -131,8 +131,8 @@ export default function DopaminePanel() {
       ) : (
         <div className="mt-2 space-y-2">
           <PathwayDiagram
-            vtaRate={dopamineState?.vta_firing_rate ?? 0}
-            nacActivity={dopamineState?.nac_activity ?? 0}
+            vtaRate={dopamineState?.tonic ?? 0}
+            nacActivity={dopamineState?.phasic ?? 0}
           />
 
           <div className="space-y-2">
@@ -153,7 +153,7 @@ export default function DopaminePanel() {
               width={240} height={28} color="#f59e0b"
               baseline={0.5} label="RPE"
               value={(() => {
-                const rpe = dopamineState?.reward_prediction_error ?? 0;
+                const rpe = dopamineState?.last_prediction_error ?? 0;
                 return `${rpe >= 0 ? "+" : ""}${rpe.toFixed(3)}`;
               })()}
             />
@@ -170,15 +170,15 @@ export default function DopaminePanel() {
               </div>
             </div>
             <div className="flex-1">
-              <div className="text-[7px] uppercase tracking-wider" style={{ color: "#ffffff20" }}>VTA Rate</div>
+              <div className="text-[7px] uppercase tracking-wider" style={{ color: "#ffffff20" }}>Baseline</div>
               <div className="text-[10px] font-mono mt-0.5" style={{ color: "#6366f1aa" }}>
-                {((dopamineState?.vta_firing_rate ?? 0) * 100).toFixed(0)}%
+                {((dopamineState?.baseline ?? 0) * 100).toFixed(0)}%
               </div>
             </div>
             <div className="flex-1">
-              <div className="text-[7px] uppercase tracking-wider" style={{ color: "#ffffff20" }}>NAc Activity</div>
+              <div className="text-[7px] uppercase tracking-wider" style={{ color: "#ffffff20" }}>Avg Reward</div>
               <div className="text-[10px] font-mono mt-0.5" style={{ color: "#f59e0baa" }}>
-                {((dopamineState?.nac_activity ?? 0) * 100).toFixed(0)}%
+                {(dopamineState?.last_average_reward ?? 0).toFixed(3)}
               </div>
             </div>
           </div>

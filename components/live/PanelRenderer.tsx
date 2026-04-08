@@ -42,10 +42,10 @@ function CognitiveStatePanel() {
         ))}
         {lastThalamicGate && (
           <div className="flex items-center gap-2 text-[11px]">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: lastThalamicGate.passed ? "#22c55e" : "#525252" }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: lastThalamicGate.gate_open ? "#22c55e" : "#525252" }} />
             <span className="text-neutral-400">Thalamic gate</span>
-            <span className={lastThalamicGate.passed ? "text-emerald-400 ml-auto" : "text-neutral-600 ml-auto"}>
-              {lastThalamicGate.passed ? "open" : "closed"}
+            <span className={lastThalamicGate.gate_open ? "text-emerald-400 ml-auto" : "text-neutral-600 ml-auto"}>
+              {lastThalamicGate.gate_open ? "open" : "closed"}
             </span>
           </div>
         )}
@@ -152,7 +152,7 @@ function formatDuration(ms: number): string {
 }
 
 function EventIcon({ type }: { type: BrainEvent["type"] }) {
-  const icons: Record<BrainEvent["type"], { icon: string; color: string }> = {
+  const icons: Partial<Record<BrainEvent["type"], { icon: string; color: string }>> = {
     thought_loop_tick: { icon: "\u25C9", color: "#818cf8" },
     collection_activity: { icon: "\u25C6", color: "#22c55e" },
     worker_activity: { icon: "\u2699", color: "#f59e0b" },
@@ -160,6 +160,7 @@ function EventIcon({ type }: { type: BrainEvent["type"] }) {
     emotional_state: { icon: "\u2665", color: "#ec4899" },
     soul_cycle: { icon: "\u2727", color: "#a78bfa" },
     action_dispatch: { icon: "\u2192", color: "#fb923c" },
+    action_monitoring: { icon: "\u2316", color: "#fb923c" },
     system_vitals: { icon: "\u2661", color: "#ef4444" },
     budget_status: { icon: "$", color: "#eab308" },
     memory_event: { icon: "\u25C7", color: "#14b8a6" },
@@ -167,8 +168,40 @@ function EventIcon({ type }: { type: BrainEvent["type"] }) {
     error_correction: { icon: "\u27F3", color: "#8b5cf6" },
     thalamic_gate: { icon: "\u2299", color: "#f97316" },
     hippocampal_cascade: { icon: "\u25CE", color: "#14b8a6" },
+    dentate_gyrus_neurogenesis: { icon: "\u2740", color: "#14b8a6" },
+    directed_forgetting: { icon: "\u2298", color: "#ef4444" },
+    source_monitoring: { icon: "\u2370", color: "#8b5cf6" },
+    metamemory: { icon: "\u25C7", color: "#a78bfa" },
+    metacognition: { icon: "\u25A3", color: "#a78bfa" },
+    theory_of_mind: { icon: "\u263B", color: "#ec4899" },
+    self_presentation: { icon: "\u2606", color: "#ec4899" },
+    cognitive_empathy: { icon: "\u2661", color: "#ec4899" },
+    social_learning: { icon: "\u2194", color: "#f472b6" },
+    sense_of_agency: { icon: "\u27A1", color: "#818cf8" },
     llm_call: { icon: "\u29EB", color: "#60a5fa" },
+    tool_execution: { icon: "\u2692", color: "#60a5fa" },
     neurochemistry_state: { icon: "\u2B21", color: "#34d399" },
+    pfc_regulation: { icon: "\u25A8", color: "#8b5cf6" },
+    bnst_state: { icon: "\u25A9", color: "#ef4444" },
+    acc_state: { icon: "\u25A5", color: "#f59e0b" },
+    salience_evaluation: { icon: "\u25C9", color: "#f97316" },
+    time_perception: { icon: "\u231A", color: "#06b6d4" },
+    vigilance: { icon: "\u25CE", color: "#fbbf24" },
+    cognitive_fatigue: { icon: "\u25CF", color: "#ef4444" },
+    autonomic_balance: { icon: "\u2194", color: "#22c55e" },
+    network_switch: { icon: "\u21C4", color: "#818cf8" },
+    expression_inhibition: { icon: "\u2718", color: "#ef4444" },
+    interoception_signal: { icon: "\u25D0", color: "#f59e0b" },
+    telegram_message: { icon: "\u2709", color: "#60a5fa" },
+    basal_ganglia_strategy: { icon: "\u2699", color: "#f472b6" },
+    value_comparison: { icon: "\u2696", color: "#fbbf24" },
+    moral_reasoning: { icon: "\u2696", color: "#a78bfa" },
+    cognitive_flexibility: { icon: "\u21BB", color: "#06b6d4" },
+    cerebellar_prediction: { icon: "\u25C8", color: "#34d399" },
+    statistical_learning: { icon: "\u2211", color: "#14b8a6" },
+    prospective_memory: { icon: "\u25B7", color: "#06b6d4" },
+    goal_plan: { icon: "\u2690", color: "#22c55e" },
+    phenomenal_binding: { icon: "\u2A00", color: "#818cf8" },
     affect_circuits: { icon: "\u2665", color: "#f59e0b" },
     dopamine_state: { icon: "\u25C8", color: "#6366f1" },
     hpa_axis_state: { icon: "\u2318", color: "#ef4444" },
@@ -200,16 +233,16 @@ function EventSummary({ event }: { event: BrainEvent }) {
     case "reward_signal": return <span>Reward: <span className={event.prediction_error > 0 ? "text-emerald-400" : "text-red-400"}>{event.prediction_error > 0 ? "+" : ""}{event.prediction_error.toFixed(2)}</span></span>;
     case "error_correction": return <span>Error correction: <span className="text-purple-400">{event.source}</span></span>;
     case "affect_circuits": return <span>Affect V:<span className={event.valence > 0.3 ? "text-emerald-400" : event.valence < -0.3 ? "text-red-400" : "text-amber-400"}>{event.valence.toFixed(2)}</span> A:{event.arousal.toFixed(2)}</span>;
-    case "dopamine_state": return <span>DA tonic:{event.tonic.toFixed(2)} RPE:<span className={event.reward_prediction_error > 0 ? "text-emerald-400" : "text-red-400"}>{event.reward_prediction_error > 0 ? "+" : ""}{event.reward_prediction_error.toFixed(3)}</span></span>;
-    case "hpa_axis_state": return <span>HPA CORT:<span className={event.cortisol > 0.7 ? "text-red-400" : "text-amber-400"}>{(event.cortisol * 100).toFixed(0)}%</span> load:{(event.chronic_load * 100).toFixed(0)}%</span>;
-    case "endorphin_dynamics": return <span>Endorphin: {(event.level * 100).toFixed(0)}% {event.refractory > 0.5 ? <span className="text-red-400">refrac</span> : <span className="text-emerald-400">ready</span>}</span>;
-    case "circadian_state": return <span>CT:{event.circadian_time.toFixed(1)}h alert:{(event.alertness * 100).toFixed(0)}%</span>;
-    case "cortical_modulation_state": return <span>PFC:{(event.pfc_capacity * 100).toFixed(0)}% err:{(event.error_rate * 100).toFixed(0)}%</span>;
+    case "dopamine_state": return <span>DA tonic:{event.tonic.toFixed(2)} RPE:<span className={event.last_prediction_error > 0 ? "text-emerald-400" : "text-red-400"}>{event.last_prediction_error > 0 ? "+" : ""}{event.last_prediction_error.toFixed(3)}</span></span>;
+    case "hpa_axis_state": return <span>HPA CORT:<span className={event.cortisol > 0.7 ? "text-red-400" : "text-amber-400"}>{(event.cortisol * 100).toFixed(0)}%</span> load:{(event.chronic_exposure * 100).toFixed(0)}%</span>;
+    case "endorphin_dynamics": return <span>Endorphin: {(event.endorphin * 100).toFixed(0)}% {event.refractory_active ? <span className="text-red-400">refrac</span> : <span className="text-emerald-400">ready</span>}</span>;
+    case "circadian_state": return <span>CT:{event.circadian_time_hours.toFixed(1)}h alert:{(event.alertness * 100).toFixed(0)}%</span>;
+    case "cortical_modulation_state": return <span>PFC:{(event.prefrontal_contribution * 100).toFixed(0)}% err:{(event.error_rate * 100).toFixed(0)}%</span>;
     case "oscillation_state": return <span>EEG {event.populations.length}ch update</span>;
-    case "homeostasis_state": return <span>Mode: <span className={event.operating_mode === "homeostatic" ? "text-emerald-400" : event.operating_mode === "allostatic_overload" ? "text-red-400" : "text-amber-400"}>{event.operating_mode}</span></span>;
+    case "homeostasis_state": return <span>Mode: <span className={event.mode === "homeostatic" ? "text-emerald-400" : event.mode === "allostatic_overload" ? "text-red-400" : "text-amber-400"}>{event.mode}</span></span>;
     case "drive_states": return <span>Drives seek:{(event.seeking_drive * 100).toFixed(0)}% social:{(event.social_drive * 100).toFixed(0)}%</span>;
     case "mood_snapshot": return <span>Mood V:{event.valence.toFixed(2)} A:{event.arousal.toFixed(2)} D:{event.dominance.toFixed(2)}</span>;
-    case "consolidation_stats": return <span>Memory +{event.consolidated} -{event.forgotten} replay:{event.replayed}</span>;
+    case "consolidation_stats": return <span>Memory +{event.consolidated} -{event.forgotten} replay:{event.replay_boosted}</span>;
     case "system_status": return <span>System: <span className={event.status === "awake" ? "text-emerald-400" : "text-blue-400"}>{event.status}</span></span>;
     default: return <span>{event.type}</span>;
   }

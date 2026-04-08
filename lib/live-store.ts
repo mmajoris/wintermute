@@ -339,7 +339,7 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
         activateRegion(newRegionActivity, "thalamus", now, "thalamic_gate");
         updates.lastThalamicGate = event as ThalamicGateEvent;
         const gateEvent = event as ThalamicGateEvent;
-        if (gateEvent.gate_open || gateEvent.passed) {
+        if (gateEvent.gate_open) {
           activateRegion(newRegionActivity, "left-hemisphere", now, "gate_passed");
           activateRegion(newRegionActivity, "locus-coeruleus", now, "arousal_burst");
         }
@@ -415,8 +415,8 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
         activateRegion(newRegionActivity, "amygdala", now, "affect_circuits");
         activateRegion(newRegionActivity, "hypothalamus", now, "affect_circuits");
         const ac = event as AffectCircuitsEvent;
-        if (ac.circuits.fear.phasic > 0.5) activateRegion(newRegionActivity, "midbrain", now, "fear_pag");
-        if (ac.circuits.seeking.phasic > 0.5) activateRegion(newRegionActivity, "nucleus-accumbens", now, "seeking_drive");
+        if (ac.fear > 0.5) activateRegion(newRegionActivity, "midbrain", now, "fear_pag");
+        if (ac.seeking > 0.5) activateRegion(newRegionActivity, "nucleus-accumbens", now, "seeking_drive");
         break;
       }
 

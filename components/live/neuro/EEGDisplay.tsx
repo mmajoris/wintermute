@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useLiveStore } from "@/lib/live-store";
-import type { OscillationPopulation } from "@/lib/brain-events";
+import type { OscillationPopulationSnapshot } from "@/lib/brain-events";
 import { BracketFrame, HudSectionTitle } from "../BracketFrame";
 
 const MONTAGE: {
@@ -44,14 +44,15 @@ const buffers: Float32Array[] = MONTAGE.map(() => new Float32Array(SAMPLES));
 const phases: Float32Array = new Float32Array(CHANNEL_COUNT);
 
 function getPopulationParams(
-  populations: OscillationPopulation[] | undefined,
+  populations: OscillationPopulationSnapshot[] | undefined,
   channelId: string,
   fallback: { freq: number; amp: number },
 ): { freq: number; amp: number; ei: number; coh: number } {
   if (!populations) return { freq: fallback.freq, amp: fallback.amp, ei: 1, coh: 0.5 };
   const pop = populations.find((p) => p.id === channelId);
   if (!pop) return { freq: fallback.freq, amp: fallback.amp, ei: 1, coh: 0.5 };
-  return { freq: pop.frequency, amp: pop.amplitude, ei: pop.ei_ratio, coh: pop.coherence };
+  const ei = pop.inhibitory > 0 ? pop.excitatory / pop.inhibitory : 1;
+  return { freq: pop.estimated_frequency_hz, amp: pop.amplitude, ei, coh: pop.coherence };
 }
 
 function generateSample(freq: number, amp: number, phase: number): number {

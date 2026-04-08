@@ -76,7 +76,7 @@ export default function CognitivePanel() {
               <div className="space-y-0.5">
                 <GaugeRow label="Processing Speed" value={cortical.processing_speed} color="#06b6d4" icon="⚡" />
                 <GaugeRow label="Error Rate" value={cortical.error_rate} color="#ef4444" icon="⚠" invertWarning />
-                <GaugeRow label="PFC Capacity" value={cortical.pfc_capacity} color="#6366f1" icon="◈" />
+                <GaugeRow label="PFC Capacity" value={cortical.prefrontal_contribution} color="#6366f1" icon="◈" />
                 <GaugeRow label="Regulation Cap." value={cortical.regulation_capacity} color="#8b5cf6" icon="◉" />
               </div>
 
@@ -86,7 +86,7 @@ export default function CognitivePanel() {
                   Overall Cognitive Status
                 </span>
                 {(() => {
-                  const avgCapacity = (cortical.processing_speed + cortical.pfc_capacity + cortical.regulation_capacity) / 3;
+                  const avgCapacity = (cortical.processing_speed + cortical.prefrontal_contribution + cortical.regulation_capacity) / 3;
                   const adjustedScore = avgCapacity * (1 - cortical.error_rate * 0.5);
                   const label = adjustedScore > 0.7 ? "OPTIMAL" : adjustedScore > 0.4 ? "ADEQUATE" : "IMPAIRED";
                   const color = adjustedScore > 0.7 ? "#22c55e" : adjustedScore > 0.4 ? "#fbbf24" : "#ef4444";
@@ -109,12 +109,12 @@ export default function CognitivePanel() {
               </div>
               <div className="grid grid-cols-5 gap-1">
                 <ConsolidationStat label="Consolidated" value={consolidation.consolidated} color="#22c55e" />
-                <ConsolidationStat label="Replayed" value={consolidation.replayed} color="#06b6d4" />
+                <ConsolidationStat label="Replayed" value={consolidation.replay_boosted} color="#06b6d4" />
                 <ConsolidationStat label="Decayed" value={consolidation.decayed} color="#fbbf24" />
                 <ConsolidationStat label="Forgotten" value={consolidation.forgotten} color="#ef4444" />
                 <div className="text-center">
                   <div className="text-[14px] font-mono font-bold" style={{ color: "#a78bfa" }}>
-                    {(consolidation.neurogenesis * 100).toFixed(0)}
+                    {(consolidation.neurogenesis_rate * 100).toFixed(0)}
                   </div>
                   <div className="text-[6px] uppercase tracking-wider mt-0.5" style={{ color: "#a78bfa66" }}>
                     Neurogenesis%

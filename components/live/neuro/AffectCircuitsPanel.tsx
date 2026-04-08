@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useLiveStore } from "@/lib/live-store";
-import type { AffectCircuitLevel } from "@/lib/brain-events";
+import { getAffectCircuitLevel, type AffectCircuitLevel } from "@/lib/brain-events";
 import { BracketFrame, HudSectionTitle } from "../BracketFrame";
 
 interface CircuitMeta {
@@ -76,8 +76,6 @@ export default function AffectCircuitsPanel() {
   const moodHistory = useLiveStore((s) => s.moodHistory);
   const connected = useLiveStore((s) => s.mollyAwake);
 
-  const circuits = affectCircuits?.circuits;
-
   const cx = 100, cy = 100, maxR = 72;
   const angleStep = (Math.PI * 2) / CIRCUIT_COUNT;
   const startAngle = -Math.PI / 2;
@@ -85,7 +83,9 @@ export default function AffectCircuitsPanel() {
   const vertices = useMemo(() => {
     return CIRCUITS.map((cm, i) => {
       const angle = startAngle + i * angleStep;
-      const level: AffectCircuitLevel | undefined = circuits?.[cm.key as keyof typeof circuits];
+      const level: AffectCircuitLevel | undefined = affectCircuits
+        ? getAffectCircuitLevel(affectCircuits, cm.key as "seeking" | "rage" | "fear" | "lust" | "care" | "panic_grief" | "play")
+        : undefined;
       const tonic = level?.tonic ?? 0.2;
       const phasic = level?.phasic ?? 0;
       const combined = Math.min(1, tonic + phasic);
@@ -102,7 +102,7 @@ export default function AffectCircuitsPanel() {
         labelY: cy + Math.sin(angle) * (maxR + 14),
       };
     });
-  }, [circuits]);
+  }, [affectCircuits]);
 
   const tonicPath = smoothClosedPath(vertices.map((v) => ({ x: v.tonicX, y: v.tonicY })));
   const phasicPath = smoothClosedPath(vertices.map((v) => ({ x: v.phasicX, y: v.phasicY })));

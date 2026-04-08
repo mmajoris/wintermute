@@ -141,19 +141,19 @@ export default function HPAAxisPanel() {
           {/* Feedback & Chronic Load */}
           <div className="mt-2 pt-2 flex gap-3" style={{ borderTop: "1px solid #ffffff08" }}>
             <div className="flex-1">
-              <div className="text-[7px] uppercase tracking-wider" style={{ color: "#ffffff25" }}>Feedback Gain</div>
+              <div className="text-[7px] uppercase tracking-wider" style={{ color: "#ffffff25" }}>Slow Feedback</div>
               <div className="text-[11px] font-mono mt-0.5" style={{
-                color: (hpa?.feedback_gain ?? 1) < 0.5 ? "#ef4444" : (hpa?.feedback_gain ?? 1) > 1.5 ? "#fbbf24" : "#34d399"
+                color: (hpa?.slow_feedback ?? 0) > 0.7 ? "#34d399" : (hpa?.slow_feedback ?? 0) < 0.3 ? "#ef4444" : "#fbbf24"
               }}>
-                {(hpa?.feedback_gain ?? 1).toFixed(2)}
+                {(hpa?.slow_feedback ?? 0).toFixed(2)}
               </div>
             </div>
             <div className="flex-1">
-              <div className="text-[7px] uppercase tracking-wider" style={{ color: "#ffffff25" }}>Chronic Load</div>
+              <div className="text-[7px] uppercase tracking-wider" style={{ color: "#ffffff25" }}>Chronic Exposure</div>
               <div className="text-[11px] font-mono mt-0.5" style={{
-                color: (hpa?.chronic_load ?? 0) > 0.7 ? "#ef4444" : (hpa?.chronic_load ?? 0) > 0.4 ? "#fbbf24" : "#34d399"
+                color: (hpa?.chronic_exposure ?? 0) > 0.7 ? "#ef4444" : (hpa?.chronic_exposure ?? 0) > 0.4 ? "#fbbf24" : "#34d399"
               }}>
-                {((hpa?.chronic_load ?? 0) * 100).toFixed(0)}%
+                {((hpa?.chronic_exposure ?? 0) * 100).toFixed(0)}%
               </div>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function HPAAxisPanel() {
                   <div className="text-[7px] uppercase" style={{ color: "#ffffff20" }}>Level</div>
                   <div className="h-2 mt-0.5 rounded-full overflow-hidden" style={{ background: "#ffffff08" }}>
                     <div className="h-full rounded-full transition-all duration-1000"
-                      style={{ width: `${endorphin.level * 100}%`, background: "#f59e0b" }} />
+                      style={{ width: `${endorphin.endorphin * 100}%`, background: "#f59e0b" }} />
                   </div>
                 </div>
                 <div className="flex-1">
@@ -182,9 +182,9 @@ export default function HPAAxisPanel() {
                 <div className="w-16 text-center">
                   <div className="text-[7px] uppercase" style={{ color: "#ffffff20" }}>Refractory</div>
                   <div className="text-[10px] font-mono mt-0.5" style={{
-                    color: endorphin.refractory > 0.5 ? "#ef4444aa" : "#34d399aa"
+                    color: endorphin.refractory_active ? "#ef4444aa" : "#34d399aa"
                   }}>
-                    {endorphin.refractory > 0.5 ? "REFRAC" : "READY"}
+                    {endorphin.refractory_active ? "REFRAC" : "READY"}
                   </div>
                 </div>
               </div>

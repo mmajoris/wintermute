@@ -97,10 +97,10 @@ export function snapshotSummary(snap: BrainSnapshot): Record<string, string> {
 
   if (snap.hpaAxisState) {
     summary["Cortisol"] = `${(snap.hpaAxisState.cortisol * 100).toFixed(0)}%`;
-    summary["Chronic Load"] = `${(snap.hpaAxisState.chronic_load * 100).toFixed(0)}%`;
+    summary["Chronic Load"] = `${(snap.hpaAxisState.chronic_exposure * 100).toFixed(0)}%`;
   }
   if (snap.homeostasisState) {
-    summary["Mode"] = snap.homeostasisState.operating_mode;
+    summary["Mode"] = snap.homeostasisState.mode;
   }
   if (snap.circadianState) {
     summary["Alertness"] = `${(snap.circadianState.alertness * 100).toFixed(0)}%`;

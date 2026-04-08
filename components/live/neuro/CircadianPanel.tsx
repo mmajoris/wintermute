@@ -160,7 +160,7 @@ export default function CircadianPanel() {
     allostatic: { bg: "#fbbf2415", text: "#fbbf24", label: "ALLOSTATIC" },
     allostatic_overload: { bg: "#ef444420", text: "#ef4444", label: "ALLOSTATIC OVERLOAD" },
   };
-  const mode = homeostasis?.operating_mode ?? "homeostatic";
+  const mode = homeostasis?.mode ?? "homeostatic";
   const modeStyle = modeColors[mode] ?? modeColors.homeostatic;
 
   return (
@@ -175,9 +175,9 @@ export default function CircadianPanel() {
         <div className="mt-1 space-y-2">
           {circadian && (
             <CircadianClock
-              circadianTime={circadian.circadian_time}
+              circadianTime={circadian.circadian_time_hours}
               alertness={circadian.alertness}
-              sleepPressure={circadian.sleep_pressure}
+              sleepPressure={circadian.homeostatic_sleep_pressure}
               theta={circadian.theta}
             />
           )}
@@ -185,7 +185,7 @@ export default function CircadianPanel() {
           {circadian && (
             <div className="space-y-1">
               <MetricBar label="Alertness" value={circadian.alertness} color="#34d399" />
-              <MetricBar label="Sleep Press." value={circadian.sleep_pressure} color="#3b82f6" warningThreshold={0.8} />
+              <MetricBar label="Sleep Press." value={circadian.homeostatic_sleep_pressure} color="#3b82f6" warningThreshold={0.8} />
             </div>
           )}
 
@@ -198,7 +198,7 @@ export default function CircadianPanel() {
                   {modeStyle.label}
                 </span>
               </div>
-              <MetricBar label="Resource Util." value={homeostasis.resource_utilization} color="#f59e0b" warningThreshold={0.85} />
+              <MetricBar label="CPU Usage" value={homeostasis.cpu_usage} color="#f59e0b" warningThreshold={0.85} />
             </div>
           )}
         </div>
