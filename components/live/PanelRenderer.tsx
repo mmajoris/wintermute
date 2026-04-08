@@ -21,6 +21,11 @@ import CTScanViewer from "./neuro/CTScanViewer";
 import PETScanViewer from "./neuro/PETScanViewer";
 import FMRIViewer from "./neuro/fMRIViewer";
 import StudyBrowserPanel from "./neuro/StudyBrowser";
+import GlobalWorkspacePanel from "./neuro/GlobalWorkspacePanel";
+import ExecutiveControlPanel from "./neuro/ExecutiveControlPanel";
+import DecisionStrategyPanel from "./neuro/DecisionStrategyPanel";
+import SocialBrainPanel from "./neuro/SocialBrainPanel";
+import CerebellarSystemPanel from "./neuro/CerebellarPanel";
 
 // ── Individual panel components ────────────────────────────────────────────
 
@@ -244,7 +249,45 @@ function EventSummary({ event }: { event: BrainEvent }) {
     case "mood_snapshot": return <span>Mood V:{event.valence.toFixed(2)} A:{event.arousal.toFixed(2)} D:{event.dominance.toFixed(2)}</span>;
     case "consolidation_stats": return <span>Memory +{event.consolidated} -{event.forgotten} replay:{event.replay_boosted}</span>;
     case "system_status": return <span>System: <span className={event.status === "awake" ? "text-emerald-400" : "text-blue-400"}>{event.status}</span></span>;
-    default: return <span>{event.type}</span>;
+    case "thalamic_gate": return <span>Thalamic gate: <span className={event.gate_open ? "text-emerald-400" : "text-neutral-500"}>{event.gate_open ? "open" : "closed"}</span></span>;
+    case "hippocampal_cascade": return <span>Cascade: <span className="text-teal-400">{event.total_activated}</span> activated</span>;
+    case "budget_status": return <span>Budget: <span className="text-amber-400">${(event.daily_limit - event.today_spend).toFixed(2)}</span> left</span>;
+    case "llm_call": return <span>LLM <span className="text-blue-400">{event.tier}</span> <span className={event.status === "completed" ? "text-emerald-500" : event.status === "failed" ? "text-red-500" : "text-neutral-500"}>{event.status}</span>{event.duration_ms != null && <span className="text-neutral-600 ml-1">{formatDuration(event.duration_ms)}</span>}</span>;
+    case "neurochemistry_state": return <span>Neuro DA:{((event.dopamine_tonic ?? 0) * 100).toFixed(0)}% 5HT:{((event.serotonin ?? 0) * 100).toFixed(0)}% NE:{event.norepinephrine_mode ?? "?"}</span>;
+    case "action_monitoring": return <span>Action <span className={event.outcome === "match" ? "text-emerald-400" : "text-red-400"}>{event.outcome}</span>{event.mismatch_magnitude > 0.3 && <span className="text-amber-400"> Δ{event.mismatch_magnitude.toFixed(2)}</span>}</span>;
+    case "cerebellar_prediction": return <span>CB <span className="text-teal-400">{event.phase}</span> conf:{(event.aggregate_confidence * 100).toFixed(0)}% @{event.tick_hz}Hz</span>;
+    case "phenomenal_binding": return <span>GW <span className="text-indigo-400">{event.workspace_mode}</span> {event.content_admitted ? <span className="text-emerald-400">admitted</span> : <span className="text-neutral-500">filtered</span>}</span>;
+    case "network_switch": return <span>Net <span className="text-indigo-400">{event.from_network}</span>&rarr;<span className="text-indigo-400">{event.to_network}</span> r:{event.anti_correlation_strength.toFixed(2)}</span>;
+    case "salience_evaluation": return <span>Salience:<span className={event.salience_score > 0.5 ? "text-amber-400" : "text-neutral-400"}>{(event.salience_score * 100).toFixed(0)}%</span> {event.outcome === "pass" ? <span className="text-emerald-400">pass</span> : <span className="text-neutral-500">filter</span>}</span>;
+    case "acc_state": return <span>ACC <span className="text-amber-400">{event.subdivision}</span> conflict:{(event.conflict_level * 100).toFixed(0)}% &rarr; {event.outcome}</span>;
+    case "pfc_regulation": return <span>PFC cap:{(event.regulation_capacity * 100).toFixed(0)}% dep:{(event.depletion_level * 100).toFixed(0)}% <span className={event.outcome === "applied" ? "text-emerald-400" : "text-amber-400"}>{event.outcome}</span></span>;
+    case "metacognition": return <span>Meta: <span className="text-purple-400">{event.feeling}</span> clarity:{(event.clarity * 100).toFixed(0)}%</span>;
+    case "expression_inhibition": return <span>Expr <span className={event.outcome === "expressed" ? "text-emerald-400" : "text-red-400"}>{event.outcome}</span> go:{event.go_strength.toFixed(2)}/stop:{event.stop_strength.toFixed(2)}</span>;
+    case "cognitive_flexibility": return <span>Switch: {event.from_task_set}&rarr;{event.to_task_set} delay:{event.delay_ms}ms</span>;
+    case "cognitive_fatigue": return <span>Fatigue cap:{(event.cognitive_capacity * 100).toFixed(0)}% <span className={event.state === "recovering" ? "text-emerald-400" : "text-neutral-400"}>{event.state}</span></span>;
+    case "basal_ganglia_strategy": return <span>BG <span className="text-pink-400">{event.phase}</span> go:{event.go_drive.toFixed(2)}/nogo:{event.no_go_drive.toFixed(2)}</span>;
+    case "value_comparison": return <span>Value <span className="text-amber-400">{event.winning_option_label}</span> conf:{(event.decision_confidence * 100).toFixed(0)}%</span>;
+    case "moral_reasoning": return <span>Moral <span className="text-purple-400">{event.dominant_route}</span> conflict:{(event.moral_conflict * 100).toFixed(0)}%</span>;
+    case "theory_of_mind": return <span>ToM <span className="text-pink-400">{event.person}</span> <span className="text-neutral-500">{event.phase}</span></span>;
+    case "self_presentation": return <span>Self <span className="text-pink-400">{event.trait}</span> fav:{(event.favorability * 100).toFixed(0)}%</span>;
+    case "cognitive_empathy": return <span>Empathy <span className="text-pink-400">{event.person}</span> {event.dominant_circuit} conf:{(event.confidence * 100).toFixed(0)}%</span>;
+    case "social_learning": return <span>SocLearn <span className="text-pink-400">{event.phase}</span> {event.strategy_label} conf:{(event.confidence * 100).toFixed(0)}%</span>;
+    case "sense_of_agency": return <span>Agency <span className={event.attribution === "self_caused" ? "text-emerald-400" : "text-amber-400"}>{event.attribution}</span> level:{(event.agency_level * 100).toFixed(0)}%</span>;
+    case "time_perception": return <span>Time rate:{event.subjective_rate.toFixed(2)} <span className="text-cyan-400">{event.feeling}</span></span>;
+    case "vigilance": return <span>Vigilance cap:{(event.vigilance_capacity * 100).toFixed(0)}% <span className={event.state === "engaged" ? "text-emerald-400" : "text-amber-400"}>{event.state}</span></span>;
+    case "autonomic_balance": return <span>ANS <span className="text-emerald-400">{event.dominant_branch}</span> vagal:{(event.vagal_tone * 100).toFixed(0)}%</span>;
+    case "bnst_state": return <span>BNST anx:{(event.sustained_anxiety * 100).toFixed(0)}% CRH:{(event.crh_drive * 100).toFixed(0)}% <span className={event.outcome === "elevated" ? "text-red-400" : "text-emerald-400"}>{event.outcome}</span></span>;
+    case "metamemory": return <span>Metamem <span className="text-purple-400">{event.feeling}</span> conf:{(event.confidence * 100).toFixed(0)}%</span>;
+    case "source_monitoring": return <span>Source <span className={event.supported ? "text-emerald-400" : "text-red-400"}>{event.supported ? "supported" : "unsupported"}</span> conf:{(event.confidence * 100).toFixed(0)}%</span>;
+    case "dentate_gyrus_neurogenesis": return <span>Neurogenesis rate:{event.neurogenesis_rate.toFixed(3)} enrich:{(event.enrichment_drive * 100).toFixed(0)}%</span>;
+    case "directed_forgetting": return <span>Forget <span className="text-red-400">{event.targeted_memory_count} traces</span> supp:{(event.mean_suppression_tone * 100).toFixed(0)}%</span>;
+    case "statistical_learning": return <span>StatLearn <span className="text-teal-400">{event.stream}</span> bias:{(event.top_bias_strength * 100).toFixed(0)}%</span>;
+    case "prospective_memory": return <span>ProsMem <span className="text-cyan-400">{event.phase}</span> {event.trigger_type}</span>;
+    case "goal_plan": return <span>Goal <span className="text-emerald-400">{event.phase}</span> {event.completed_steps}/{event.total_steps}</span>;
+    case "tool_execution": return <span>Tool <span className="text-blue-400">{event.tool_name}</span> <span className={event.success ? "text-emerald-500" : "text-red-500"}>{event.success ? "ok" : "fail"}</span> {formatDuration(event.duration_ms)}</span>;
+    case "telegram_message": return <span>{event.direction === "received" ? "\u2190" : "\u2192"} TG <span className="text-blue-400">{event.message_length}ch</span></span>;
+    case "interoception_signal": return <span>Intero <span className="text-amber-400">{event.source_module}</span> pri:{event.priority}</span>;
+    default: return <span>{(event as { type: string }).type}</span>;
   }
 }
 
@@ -319,6 +362,11 @@ const PANEL_COMPONENTS: Record<string, React.ComponentType> = {
   "pet-scan": PETScanViewer,
   "fmri-bold": FMRIViewer,
   "study-browser": StudyBrowserPanel,
+  "global-workspace": GlobalWorkspacePanel,
+  "executive-control": ExecutiveControlPanel,
+  "decision-strategy": DecisionStrategyPanel,
+  "social-brain": SocialBrainPanel,
+  "cerebellar-system": CerebellarSystemPanel,
 };
 
 // ── Renderer ───────────────────────────────────────────────────────────────

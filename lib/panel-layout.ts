@@ -29,6 +29,11 @@ export const PANEL_REGISTRY: PanelDef[] = [
   { id: "pet-scan", label: "PET Scan" },
   { id: "fmri-bold", label: "fMRI BOLD" },
   { id: "study-browser", label: "Scan Studies" },
+  { id: "global-workspace", label: "Global Workspace" },
+  { id: "executive-control", label: "Executive Control" },
+  { id: "decision-strategy", label: "Decision & Strategy" },
+  { id: "social-brain", label: "Social Brain" },
+  { id: "cerebellar-system", label: "Cerebellar System" },
 ];
 
 export function getPanelLabel(id: string): string {
@@ -65,6 +70,11 @@ const DEFAULT_LAYOUT: SidebarLayout = {
       panels: ["affect-circuits", "hpa-stress", "dopamine-system"],
     },
     {
+      id: "higher",
+      label: "Higher",
+      panels: ["executive-control", "decision-strategy", "social-brain"],
+    },
+    {
       id: "imaging",
       label: "Imaging",
       panels: ["mri-viewer", "ct-scan"],
@@ -90,6 +100,11 @@ const DEFAULT_LAYOUT: SidebarLayout = {
       id: "functional",
       label: "Functional",
       panels: ["pet-scan", "fmri-bold"],
+    },
+    {
+      id: "systems",
+      label: "Systems",
+      panels: ["global-workspace", "cerebellar-system"],
     },
     {
       id: "studies",
@@ -170,9 +185,9 @@ export const usePanelLayout = create<PanelLayoutStore>()(
     }),
     {
       name: "wintermute:panel-layout",
-      version: 4,
+      version: 5,
       migrate: (persisted: unknown, version: number) => {
-        if (version < 4) {
+        if (version < 5) {
           return DEFAULT_LAYOUT;
         }
         return persisted as PanelLayoutStore;

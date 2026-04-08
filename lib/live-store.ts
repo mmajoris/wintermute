@@ -22,6 +22,39 @@ import type {
   DriveStatesEvent,
   MoodSnapshotEvent,
   ConsolidationStatsEvent,
+  PhenomenalBindingEvent,
+  NetworkSwitchEvent,
+  SalienceEvaluationEvent,
+  AccStateEvent,
+  PfcRegulationEvent,
+  MetacognitionEvent,
+  ExpressionInhibitionEvent,
+  CognitiveFlexibilityEvent,
+  BasalGangliaStrategyEvent,
+  ValueComparisonEvent,
+  MoralReasoningEvent,
+  TheoryOfMindEvent,
+  CognitiveEmpathyEvent,
+  SelfPresentationEvent,
+  SocialLearningEvent,
+  CerebellarPredictionEvent,
+  SenseOfAgencyEvent,
+  ActionMonitoringEvent,
+  TimePerceptionEvent,
+  VigilanceEvent,
+  CognitiveFatigueEvent,
+  AutonomicBalanceEvent,
+  BnstStateEvent,
+  MetamemoryEvent,
+  SourceMonitoringEvent,
+  DentateGyrusNeurogenesisEvent,
+  DirectedForgettingEvent,
+  StatisticalLearningBrainEvent,
+  ProspectiveMemoryEvent,
+  GoalPlanEvent,
+  ToolExecutionEvent,
+  TelegramMessageEvent,
+  InteroceptionSignalEvent,
 } from "./brain-events";
 import {
   getRegionForCollection,
@@ -118,6 +151,32 @@ export interface LiveStore {
   consolidationStats: ConsolidationStatsEvent | null;
   moodHistory: Array<{ timestamp: string; valence: number; arousal: number; dominance: number }>;
 
+  // New subsystem state
+  phenomenalBinding: PhenomenalBindingEvent | null;
+  networkSwitch: NetworkSwitchEvent | null;
+  salienceEvaluation: SalienceEvaluationEvent | null;
+  accState: AccStateEvent | null;
+  pfcRegulation: PfcRegulationEvent | null;
+  metacognitionState: MetacognitionEvent | null;
+  expressionInhibition: ExpressionInhibitionEvent | null;
+  cognitiveFlexibility: CognitiveFlexibilityEvent | null;
+  basalGangliaStrategy: BasalGangliaStrategyEvent | null;
+  valueComparison: ValueComparisonEvent | null;
+  moralReasoning: MoralReasoningEvent | null;
+  theoryOfMind: TheoryOfMindEvent | null;
+  cognitiveEmpathy: CognitiveEmpathyEvent | null;
+  selfPresentation: SelfPresentationEvent | null;
+  socialLearning: SocialLearningEvent | null;
+  cerebellarPrediction: CerebellarPredictionEvent | null;
+  senseOfAgency: SenseOfAgencyEvent | null;
+  actionMonitoring: ActionMonitoringEvent | null;
+  timePerception: TimePerceptionEvent | null;
+  vigilanceState: VigilanceEvent | null;
+  cognitiveFatigue: CognitiveFatigueEvent | null;
+  autonomicBalance: AutonomicBalanceEvent | null;
+  bnstState: BnstStateEvent | null;
+  metamemoryState: MetamemoryEvent | null;
+
   lastEventAt: number;
   mollyAwake: boolean;
 
@@ -184,6 +243,32 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   moodSnapshot: null,
   consolidationStats: null,
   moodHistory: [],
+
+  phenomenalBinding: null,
+  networkSwitch: null,
+  salienceEvaluation: null,
+  accState: null,
+  pfcRegulation: null,
+  metacognitionState: null,
+  expressionInhibition: null,
+  cognitiveFlexibility: null,
+  basalGangliaStrategy: null,
+  valueComparison: null,
+  moralReasoning: null,
+  theoryOfMind: null,
+  cognitiveEmpathy: null,
+  selfPresentation: null,
+  socialLearning: null,
+  cerebellarPrediction: null,
+  senseOfAgency: null,
+  actionMonitoring: null,
+  timePerception: null,
+  vigilanceState: null,
+  cognitiveFatigue: null,
+  autonomicBalance: null,
+  bnstState: null,
+  metamemoryState: null,
+
   lastEventAt: 0,
   mollyAwake: false,
 
@@ -495,6 +580,287 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
       case "system_status": {
         const ss = event as SystemStatusEvent;
         updates.mollyAwake = ss.status === "awake";
+        break;
+      }
+
+      // ── Cerebellar / Prediction ─────────────────────────────────────
+
+      case "cerebellar_prediction": {
+        const cp = event as CerebellarPredictionEvent;
+        updates.cerebellarPrediction = cp;
+        activateRegion(newRegionActivity, "cerebellum", now, "cerebellar_prediction");
+        if (cp.phase === "learning") {
+          activateRegion(newRegionActivity, "anterior-cingulate-L", now, "cerebellar_learning");
+        }
+        break;
+      }
+
+      case "action_monitoring": {
+        const am = event as ActionMonitoringEvent;
+        updates.actionMonitoring = am;
+        activateRegion(newRegionActivity, "cerebellum", now, "action_monitoring");
+        activateRegion(newRegionActivity, "anterior-cingulate-L", now, "action_monitoring");
+        if (am.triggered_interoception) {
+          activateRegion(newRegionActivity, "insular-cortex-L", now, "interoception_trigger");
+        }
+        break;
+      }
+
+      case "sense_of_agency": {
+        const sa = event as SenseOfAgencyEvent;
+        updates.senseOfAgency = sa;
+        activateRegion(newRegionActivity, "cerebellum", now, "agency_comparator");
+        activateRegion(newRegionActivity, "insular-cortex-L", now, "agency_awareness");
+        if (sa.attribution === "externally_caused") {
+          activateRegion(newRegionActivity, "anterior-cingulate-L", now, "agency_conflict");
+        }
+        break;
+      }
+
+      case "time_perception": {
+        updates.timePerception = event as TimePerceptionEvent;
+        activateRegion(newRegionActivity, "cerebellum", now, "interval_timing");
+        activateRegion(newRegionActivity, "locus-coeruleus", now, "ne_time_dilation");
+        break;
+      }
+
+      // ── Executive Control ───────────────────────────────────────────
+
+      case "metacognition": {
+        const mc = event as MetacognitionEvent;
+        updates.metacognitionState = mc;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "metacognition");
+        if (mc.conflict_load > 0.5) {
+          activateRegion(newRegionActivity, "anterior-cingulate-L", now, "metacognitive_conflict");
+        }
+        break;
+      }
+
+      case "acc_state": {
+        const acc = event as AccStateEvent;
+        updates.accState = acc;
+        activateRegion(newRegionActivity, "anterior-cingulate-L", now, "acc_control");
+        if (acc.distress_level > 0.6) {
+          activateRegion(newRegionActivity, "amygdala", now, "acc_distress");
+        }
+        break;
+      }
+
+      case "pfc_regulation": {
+        updates.pfcRegulation = event as PfcRegulationEvent;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "pfc_regulation");
+        activateRegion(newRegionActivity, "amygdala", now, "vmpfc_amygdala_coupling");
+        break;
+      }
+
+      case "expression_inhibition": {
+        updates.expressionInhibition = event as ExpressionInhibitionEvent;
+        activateRegion(newRegionActivity, "caudate-nucleus", now, "expression_gate");
+        activateRegion(newRegionActivity, "left-hemisphere", now, "ifg_stop_signal");
+        break;
+      }
+
+      case "cognitive_flexibility": {
+        updates.cognitiveFlexibility = event as CognitiveFlexibilityEvent;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "task_switching");
+        activateRegion(newRegionActivity, "thalamus", now, "thalamic_reconfiguration");
+        break;
+      }
+
+      case "cognitive_fatigue": {
+        const cf = event as CognitiveFatigueEvent;
+        updates.cognitiveFatigue = cf;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "fatigue_pfc");
+        if (cf.state === "recovering") {
+          activateRegion(newRegionActivity, "anterior-cingulate-L", now, "fatigue_recovery");
+        }
+        break;
+      }
+
+      // ── Decision & Strategy ─────────────────────────────────────────
+
+      case "basal_ganglia_strategy": {
+        const bg = event as BasalGangliaStrategyEvent;
+        updates.basalGangliaStrategy = bg;
+        activateRegion(newRegionActivity, "caudate-nucleus", now, "bg_strategy");
+        activateRegion(newRegionActivity, "globus-pallidus", now, "bg_output");
+        if (bg.prediction_error !== undefined) {
+          activateRegion(newRegionActivity, "substantia-nigra", now, "bg_da_signal");
+        }
+        break;
+      }
+
+      case "value_comparison": {
+        updates.valueComparison = event as ValueComparisonEvent;
+        activateRegion(newRegionActivity, "nucleus-accumbens", now, "value_evaluation");
+        activateRegion(newRegionActivity, "left-hemisphere", now, "ofc_value");
+        break;
+      }
+
+      case "moral_reasoning": {
+        const mr = event as MoralReasoningEvent;
+        updates.moralReasoning = mr;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "moral_deliberation");
+        activateRegion(newRegionActivity, "amygdala", now, "moral_emotion");
+        if (mr.moral_conflict > 0.5) {
+          activateRegion(newRegionActivity, "anterior-cingulate-L", now, "moral_conflict");
+        }
+        break;
+      }
+
+      // ── Social / Mentalizing ────────────────────────────────────────
+
+      case "theory_of_mind": {
+        updates.theoryOfMind = event as TheoryOfMindEvent;
+        activateRegion(newRegionActivity, "right-hemisphere", now, "tpj_mentalizing");
+        activateRegion(newRegionActivity, "left-hemisphere", now, "mpfc_mentalizing");
+        break;
+      }
+
+      case "self_presentation": {
+        updates.selfPresentation = event as SelfPresentationEvent;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "self_model");
+        activateRegion(newRegionActivity, "amygdala", now, "social_evaluation");
+        break;
+      }
+
+      case "cognitive_empathy": {
+        updates.cognitiveEmpathy = event as CognitiveEmpathyEvent;
+        activateRegion(newRegionActivity, "amygdala", now, "empathic_resonance");
+        activateRegion(newRegionActivity, "insular-cortex-L", now, "empathic_simulation");
+        break;
+      }
+
+      case "social_learning": {
+        updates.socialLearning = event as SocialLearningEvent;
+        activateRegion(newRegionActivity, "caudate-nucleus", now, "observational_learning");
+        activateRegion(newRegionActivity, "hippocampus", now, "strategy_integration");
+        break;
+      }
+
+      // ── Salience / Global Workspace ─────────────────────────────────
+
+      case "salience_evaluation": {
+        const se = event as SalienceEvaluationEvent;
+        updates.salienceEvaluation = se;
+        activateRegion(newRegionActivity, "insular-cortex-L", now, "salience_eval");
+        activateRegion(newRegionActivity, "anterior-cingulate-L", now, "salience_eval");
+        if (se.ne_modulation > 0.5) {
+          activateRegion(newRegionActivity, "locus-coeruleus", now, "salience_ne_burst");
+        }
+        break;
+      }
+
+      case "network_switch": {
+        updates.networkSwitch = event as NetworkSwitchEvent;
+        activateRegion(newRegionActivity, "insular-cortex-L", now, "network_switch");
+        activateRegion(newRegionActivity, "anterior-cingulate-L", now, "network_switch");
+        break;
+      }
+
+      case "phenomenal_binding": {
+        const pb = event as PhenomenalBindingEvent;
+        updates.phenomenalBinding = pb;
+        activateRegion(newRegionActivity, "thalamus", now, "gw_binding");
+        if (pb.content_admitted) {
+          activateRegion(newRegionActivity, "left-hemisphere", now, "gw_broadcast");
+          activateRegion(newRegionActivity, "right-hemisphere", now, "gw_broadcast");
+        }
+        if (pb.binding_rule === "nrem_delta_spindle_ripple") {
+          activateRegion(newRegionActivity, "hippocampus", now, "sleep_replay_binding");
+        }
+        break;
+      }
+
+      case "vigilance": {
+        updates.vigilanceState = event as VigilanceEvent;
+        activateRegion(newRegionActivity, "locus-coeruleus", now, "vigilance");
+        activateRegion(newRegionActivity, "thalamus", now, "sustained_attention");
+        break;
+      }
+
+      // ── Body / Stress ───────────────────────────────────────────────
+
+      case "bnst_state": {
+        updates.bnstState = event as BnstStateEvent;
+        activateRegion(newRegionActivity, "amygdala", now, "bnst_anxiety");
+        activateRegion(newRegionActivity, "hypothalamus", now, "bnst_crh");
+        break;
+      }
+
+      case "autonomic_balance": {
+        const ab = event as AutonomicBalanceEvent;
+        updates.autonomicBalance = ab;
+        activateRegion(newRegionActivity, "medulla", now, "autonomic_balance");
+        activateRegion(newRegionActivity, "cn-x", now, "vagal_tone");
+        if (ab.allostatic_load > 0.6) {
+          activateRegion(newRegionActivity, "hypothalamus", now, "allostatic_stress");
+        }
+        break;
+      }
+
+      // ── Memory / Hippocampal ────────────────────────────────────────
+
+      case "dentate_gyrus_neurogenesis": {
+        activateRegion(newRegionActivity, "dentate-gyrus", now, "neurogenesis");
+        activateRegion(newRegionActivity, "hippocampus", now, "neurogenesis");
+        break;
+      }
+
+      case "directed_forgetting": {
+        activateRegion(newRegionActivity, "hippocampus", now, "directed_forgetting");
+        activateRegion(newRegionActivity, "left-hemisphere", now, "pfc_suppression");
+        break;
+      }
+
+      case "metamemory": {
+        updates.metamemoryState = event as MetamemoryEvent;
+        activateRegion(newRegionActivity, "left-hemisphere", now, "metamemory");
+        activateRegion(newRegionActivity, "hippocampus", now, "metamemory_trace");
+        break;
+      }
+
+      case "source_monitoring": {
+        activateRegion(newRegionActivity, "left-hemisphere", now, "source_monitoring");
+        activateRegion(newRegionActivity, "hippocampus", now, "source_trace");
+        break;
+      }
+
+      case "statistical_learning": {
+        activateRegion(newRegionActivity, "hippocampus", now, "statistical_learning");
+        activateRegion(newRegionActivity, "caudate-nucleus", now, "probabilistic_learning");
+        break;
+      }
+
+      case "prospective_memory": {
+        activateRegion(newRegionActivity, "left-hemisphere", now, "intention_maintenance");
+        activateRegion(newRegionActivity, "hippocampus", now, "prospective_cue");
+        break;
+      }
+
+      case "goal_plan": {
+        activateRegion(newRegionActivity, "left-hemisphere", now, "planning");
+        activateRegion(newRegionActivity, "caudate-nucleus", now, "action_sequencing");
+        break;
+      }
+
+      // ── Action / IO ─────────────────────────────────────────────────
+
+      case "tool_execution": {
+        activateRegion(newRegionActivity, "left-hemisphere", now, "tool_use");
+        activateRegion(newRegionActivity, "caudate-nucleus", now, "tool_execution");
+        break;
+      }
+
+      case "telegram_message": {
+        activateRegion(newRegionActivity, "left-hemisphere", now, "language_io");
+        activateRegion(newRegionActivity, "thalamus", now, "sensory_relay");
+        break;
+      }
+
+      case "interoception_signal": {
+        activateRegion(newRegionActivity, "insular-cortex-L", now, "interoception");
+        activateRegion(newRegionActivity, "medulla", now, "visceral_afferent");
         break;
       }
     }

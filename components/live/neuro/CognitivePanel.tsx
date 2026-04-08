@@ -49,13 +49,32 @@ function ConsolidationStat({ label, value, color }: { label: string; value: numb
   );
 }
 
+const VIGILANCE_COLORS: Record<string, string> = {
+  engaged: "#22c55e",
+  recovering: "#06b6d4",
+};
+
+const FATIGUE_COLORS: Record<string, string> = {
+  engaged: "#22c55e",
+  recovering: "#06b6d4",
+};
+
+const METAMEMORY_COLORS: Record<string, string> = {
+  confident: "#22c55e",
+  should_verify: "#fbbf24",
+  tip_of_the_tongue: "#f59e0b",
+};
+
 export default function CognitivePanel() {
   const cortical = useLiveStore((s) => s.corticalModulation);
   const consolidation = useLiveStore((s) => s.consolidationStats);
   const drives = useLiveStore((s) => s.driveStates);
+  const vigilanceState = useLiveStore((s) => s.vigilanceState);
+  const cognitiveFatigue = useLiveStore((s) => s.cognitiveFatigue);
+  const metamemoryState = useLiveStore((s) => s.metamemoryState);
   const connected = useLiveStore((s) => s.mollyAwake);
 
-  const online = connected && (cortical !== null || consolidation !== null || drives !== null);
+  const online = connected && (cortical !== null || consolidation !== null || drives !== null || vigilanceState !== null || cognitiveFatigue !== null);
 
   return (
     <BracketFrame variant="detail-3" className="p-3 flex flex-col overflow-hidden">
@@ -160,6 +179,73 @@ export default function CognitivePanel() {
                 <GaugeRow label="Social Drive" value={drives.social_drive} color="#ec4899" icon="♡" />
                 <GaugeRow label="Seeking Drive" value={drives.seeking_drive} color="#06b6d4" icon="◎" />
                 <GaugeRow label="Novelty Hunger" value={drives.novelty_hunger} color="#f59e0b" icon="✦" />
+              </div>
+            </div>
+          )}
+
+          {/* Vigilance & Fatigue */}
+          {(vigilanceState || cognitiveFatigue) && (
+            <div className="pt-2" style={{ borderTop: "1px solid #ffffff08" }}>
+              <div className="text-[7px] uppercase tracking-wider mb-1" style={{ color: "#ffffff30" }}>
+                Vigilance &amp; Fatigue
+              </div>
+              <div className="space-y-0.5">
+                {vigilanceState && (
+                  <>
+                    <GaugeRow label="Vig Capacity" value={vigilanceState.vigilance_capacity} color="#fbbf24" icon="◉" />
+                    <GaugeRow label="Vig Depletion" value={vigilanceState.vigilance_depletion} color="#ef4444" icon="▼" invertWarning />
+                    <div className="flex items-center gap-2 py-0.5">
+                      <span className="text-[8px] w-20" style={{ color: "#ffffff40" }}>State</span>
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+                        style={{
+                          color: VIGILANCE_COLORS[vigilanceState.state] ?? "#818cf8",
+                          background: `${VIGILANCE_COLORS[vigilanceState.state] ?? "#818cf8"}15`,
+                        }}>
+                        {vigilanceState.state}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {cognitiveFatigue && (
+                  <>
+                    <GaugeRow label="Cog Capacity" value={cognitiveFatigue.cognitive_capacity} color="#06b6d4" icon="◈" />
+                    <GaugeRow label="Fatigue Load" value={cognitiveFatigue.fatigue_load} color="#ef4444" icon="■" invertWarning />
+                    <div className="flex items-center gap-2 py-0.5">
+                      <span className="text-[8px] w-20" style={{ color: "#ffffff40" }}>State</span>
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+                        style={{
+                          color: FATIGUE_COLORS[cognitiveFatigue.state] ?? "#818cf8",
+                          background: `${FATIGUE_COLORS[cognitiveFatigue.state] ?? "#818cf8"}15`,
+                        }}>
+                        {cognitiveFatigue.state}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Metamemory */}
+          {metamemoryState && (
+            <div className="pt-2" style={{ borderTop: "1px solid #ffffff08" }}>
+              <div className="text-[7px] uppercase tracking-wider mb-1" style={{ color: "#ffffff30" }}>
+                Metamemory
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+                  style={{
+                    color: METAMEMORY_COLORS[metamemoryState.feeling] ?? "#818cf8",
+                    background: `${METAMEMORY_COLORS[metamemoryState.feeling] ?? "#818cf8"}15`,
+                  }}>
+                  {metamemoryState.feeling}
+                </span>
+                <span className="text-[8px] font-mono" style={{ color: "#ffffff50" }}>
+                  conf: {(metamemoryState.confidence * 100).toFixed(0)}%
+                </span>
+                <span className="text-[8px] font-mono" style={{ color: "#ffffff30" }}>
+                  fluency: {(metamemoryState.fluency * 100).toFixed(0)}%
+                </span>
               </div>
             </div>
           )}

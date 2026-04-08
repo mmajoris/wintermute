@@ -65,12 +65,39 @@ function ReceptorGauge({ label, value, color }: { label: string; value: number; 
   );
 }
 
+function DualToneBar({ leftValue, rightValue, leftColor, rightColor, leftLabel, rightLabel }: {
+  leftValue: number; rightValue: number; leftColor: string; rightColor: string; leftLabel: string; rightLabel: string;
+}) {
+  const leftPct = Math.max(0, Math.min(50, leftValue * 50));
+  const rightPct = Math.max(0, Math.min(50, rightValue * 50));
+  return (
+    <div>
+      <div className="flex justify-between text-[7px] uppercase tracking-wider mb-0.5">
+        <span style={{ color: leftColor }}>{leftLabel} {(leftValue * 100).toFixed(0)}%</span>
+        <span style={{ color: rightColor }}>{rightLabel} {(rightValue * 100).toFixed(0)}%</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden flex" style={{ background: "#ffffff08" }}>
+        <div className="h-full" style={{ width: "50%", display: "flex", justifyContent: "flex-end" }}>
+          <div className="h-full rounded-l-full transition-all duration-700"
+            style={{ width: `${leftPct * 2}%`, background: leftColor, opacity: 0.7 }} />
+        </div>
+        <div className="h-full" style={{ width: "50%" }}>
+          <div className="h-full rounded-r-full transition-all duration-700"
+            style={{ width: `${rightPct * 2}%`, background: rightColor, opacity: 0.7 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HPAAxisPanel() {
   const hpa = useLiveStore((s) => s.hpaAxisState);
   const endorphin = useLiveStore((s) => s.endorphinDynamics);
+  const bnst = useLiveStore((s) => s.bnstState);
+  const autonomic = useLiveStore((s) => s.autonomicBalance);
   const connected = useLiveStore((s) => s.mollyAwake);
 
-  const online = connected && (hpa !== null || endorphin !== null);
+  const online = connected && (hpa !== null || endorphin !== null || bnst !== null || autonomic !== null);
 
   return (
     <BracketFrame variant="detail-3" className="p-3 flex flex-col overflow-hidden">
@@ -188,6 +215,61 @@ export default function HPAAxisPanel() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* BNST – Sustained Anxiety */}
+          {bnst && (
+            <div className="mt-2 pt-2" style={{ borderTop: "1px solid #ffffff08" }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[8px] uppercase tracking-wider" style={{ color: "#ef444460" }}>
+                  BNST (Extended Amygdala)
+                </div>
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+                  style={{
+                    color: bnst.outcome === "elevated" ? "#ef4444" : bnst.outcome === "damped" ? "#22c55e" : "#fbbf24",
+                    background: bnst.outcome === "elevated" ? "#ef444415" : bnst.outcome === "damped" ? "#22c55e15" : "#fbbf2415",
+                  }}>
+                  {bnst.outcome.toUpperCase()}
+                </span>
+              </div>
+              <ReceptorGauge label="Anx" value={bnst.sustained_anxiety} color="#ef4444" />
+              <ReceptorGauge label="CRH" value={bnst.crh_drive} color="#ec4899" />
+              <ReceptorGauge label="Anxio" value={bnst.anxiolytic_buffer} color="#22c55e" />
+            </div>
+          )}
+
+          {/* Autonomic Balance */}
+          {autonomic && (
+            <div className="mt-2 pt-2" style={{ borderTop: "1px solid #ffffff08" }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[8px] uppercase tracking-wider" style={{ color: "#22c55e60" }}>
+                  Autonomic Nervous System
+                </div>
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+                  style={{
+                    color: autonomic.dominant_branch === "parasympathetic" ? "#22c55e" : "#ef4444",
+                    background: autonomic.dominant_branch === "parasympathetic" ? "#22c55e15" : "#ef444415",
+                  }}>
+                  {autonomic.dominant_branch.toUpperCase()}
+                </span>
+              </div>
+              <DualToneBar
+                leftValue={autonomic.sympathetic_tone}
+                rightValue={autonomic.parasympathetic_tone}
+                leftColor="#ef4444"
+                rightColor="#22c55e"
+                leftLabel="Symp"
+                rightLabel="Para"
+              />
+              <div className="mt-1">
+                <ReceptorGauge label="Vagal" value={autonomic.vagal_tone} color="#34d399" />
+              </div>
+              {autonomic.allostatic_load > 0.4 && (
+                <div className="mt-1">
+                  <ReceptorGauge label="Allo" value={autonomic.allostatic_load} color="#f59e0b" />
+                </div>
+              )}
             </div>
           )}
         </div>
