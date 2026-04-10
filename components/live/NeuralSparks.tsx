@@ -94,10 +94,12 @@ export default function NeuralSparks({ visibleRegions }: NeuralSparksProps) {
 
       for (const ci of curveIndices) {
         if (sparks.length >= MAX_SPARKS) break;
+        const delay = Math.random() * 80;
+        const jitter = 0.85 + Math.random() * 0.3;
         sparks.push({
           curveIndex: ci,
-          startedAt: now,
-          intensity: activation.intensity,
+          startedAt: now + delay,
+          intensity: activation.intensity * jitter,
         });
       }
     }

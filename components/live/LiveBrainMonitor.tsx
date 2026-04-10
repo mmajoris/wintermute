@@ -11,6 +11,7 @@ import { LAYER_GROUPS } from "@/lib/brain-model-loader";
 import { NeuralBrainViewProvider } from "./NeuralBrain3DViewer";
 import NeuralBrain3DViewer from "./NeuralBrain3DViewer";
 import NeuralEffects from "./NeuralEffects";
+import NeuralMicroActivity from "./NeuralMicroActivity";
 import NeuralPathways from "./NeuralPathways";
 import NeuralSparks from "./NeuralSparks";
 import LiveTopBar from "./LiveTopBar";
@@ -364,6 +365,7 @@ export default function LiveBrainMonitor() {
             <Suspense fallback={null}>
               <NeuralBrainViewProvider visibleIds={visibleIds}>
                 <RotatingBrain>
+                  <NeuralMicroActivity visibleRegions={visibleIds} />
                   <NeuralPathways visibleRegions={visibleIds} />
                   <NeuralSparks visibleRegions={visibleIds} />
                 </RotatingBrain>
