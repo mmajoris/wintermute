@@ -6,50 +6,37 @@ import * as THREE from "three";
 import { useLiveStore } from "@/lib/live-store";
 import { BRAIN_REGIONS_3D } from "@/lib/brain-anatomy-3d";
 
-const CORTEX_POINTS = 2800;
-const CEREBELLUM_POINTS = 500;
-const DEEP_POINTS_PER_ENTRY = 50;
+const CORTEX_POINTS = 2000;
+const CEREBELLUM_POINTS = 350;
+const DEEP_POINTS_PER_ENTRY = 40;
 const MAX_REGIONS = 64;
 
 const BRAIN_CY = 11;
 const BRAIN_CZ = -0.5;
 
 const CB_CX = 0, CB_CY = 5.5, CB_CZ = -4.5;
-const CB_RX = 3.5, CB_RY = 1.8, CB_RZ = 2.5;
+const CB_RX = 2.8, CB_RY = 1.4, CB_RZ = 2.0;
 
-// Per-region electrophysiological firing characteristics
 interface FireProfile {
-  baseRate: number;   // spontaneous firing rate (Hz)
-  rateGain: number;   // additional Hz at full activation
-  flashScale: number; // visual brightness/size multiplier (inverse-ish of rate)
+  baseRate: number;
+  rateGain: number;
+  flashScale: number;
 }
 
 const FIRE_PROFILES: Record<string, FireProfile> = {
-  // Cortical pyramidal neurons: 1-20 Hz typical range
   "left-hemisphere":   { baseRate: 1.0,  rateGain: 18.0, flashScale: 1.0  },
   "right-hemisphere":  { baseRate: 1.0,  rateGain: 18.0, flashScale: 1.0  },
-  // Purkinje cells: 40-100 Hz spontaneous, most active cells in the brain
   "cerebellum":        { baseRate: 35.0, rateGain: 60.0, flashScale: 0.22 },
-  // Thalamic relay neurons: 2-10 Hz tonic, burst mode much faster
   "thalamus":          { baseRate: 2.0,  rateGain: 28.0, flashScale: 0.7  },
-  // Medium spiny neurons (MSNs): extremely quiet at rest (~0.1-1 Hz)
   "caudate-nucleus":   { baseRate: 0.2,  rateGain: 22.0, flashScale: 1.2  },
   "putamen":           { baseRate: 0.2,  rateGain: 22.0, flashScale: 1.2  },
-  // GPe/GPi: high tonic discharge rate (25-80 Hz)
   "globus-pallidus":   { baseRate: 25.0, rateGain: 50.0, flashScale: 0.28 },
-  // NAc MSNs: quiet like dorsal striatum
   "nucleus-accumbens": { baseRate: 0.3,  rateGain: 18.0, flashScale: 1.1  },
-  // Hippocampal place cells: sparse coding, low baseline
   "hippocampus":       { baseRate: 0.5,  rateGain: 18.0, flashScale: 1.0  },
-  // Amygdala projection neurons: moderate spontaneous rate
   "amygdala":          { baseRate: 2.0,  rateGain: 25.0, flashScale: 0.8  },
-  // Hypothalamic neuroendocrine neurons: moderate tonic
   "hypothalamus":      { baseRate: 3.0,  rateGain: 12.0, flashScale: 0.7  },
-  // Midbrain (SN/VTA dopaminergic + reticular): moderate spontaneous
   "midbrain":          { baseRate: 5.0,  rateGain: 20.0, flashScale: 0.6  },
-  // Pontine nuclei: moderate relay activity
   "pons":              { baseRate: 4.0,  rateGain: 16.0, flashScale: 0.6  },
-  // Medullary autonomic centers: steady moderate rate
   "medulla":           { baseRate: 3.0,  rateGain: 12.0, flashScale: 0.7  },
 };
 
@@ -75,11 +62,7 @@ for (const r of BRAIN_REGIONS_3D) {
 }
 const TOTAL_REGIONS = STORE_IDS.length;
 
-function buildFireRateArrays(): {
-  baseRates: Float32Array;
-  rateGains: Float32Array;
-  flashScales: Float32Array;
-} {
+function buildFireRateArrays() {
   const baseRates = new Float32Array(MAX_REGIONS);
   const rateGains = new Float32Array(MAX_REGIONS);
   const flashScales = new Float32Array(MAX_REGIONS);
@@ -94,14 +77,7 @@ function buildFireRateArrays(): {
   return { baseRates, rateGains, flashScales };
 }
 
-interface SampledPoints {
-  positions: Float32Array;
-  regionIndices: Float32Array;
-  seeds: Float32Array;
-  count: number;
-}
-
-function buildPoints(): SampledPoints {
+function buildPoints() {
   const deepEntries = BRAIN_REGIONS_3D.filter((r) => r.storeId);
   const totalDeep = deepEntries.length * DEEP_POINTS_PER_ENTRY;
   const total = CORTEX_POINTS + CEREBELLUM_POINTS + totalDeep;
@@ -114,29 +90,31 @@ function buildPoints(): SampledPoints {
   const leftIdx = REGION_INDEX.get("left-hemisphere")!;
   const rightIdx = REGION_INDEX.get("right-hemisphere")!;
 
+  // Cortex: shrunk ~25% from the SDF geometry so points stay inside the mesh
   for (let i = 0; i < CORTEX_POINTS; i++) {
     const theta = Math.random() * Math.PI * 2;
     const cosPhi = 2 * Math.random() - 1;
     const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
 
-    const latR = 6.5;
-    const vertR = 7.5;
-    const apR = Math.sin(theta) > 0 ? 5.2 : 5.8;
+    const latR = 4.8;
+    const vertR = 5.5;
+    const apR = Math.sin(theta) > 0 ? 3.8 : 4.4;
 
     let x = sinPhi * Math.cos(theta) * latR;
     const y = cosPhi * vertR;
     const z = sinPhi * Math.sin(theta) * apR;
 
     const yNorm = (y + vertR) / (2 * vertR);
-    if (Math.abs(x) < 1.0 && yNorm > 0.55) {
-      const depth = (1 - Math.abs(x)) * (yNorm - 0.55) * 2.2;
-      x += (x < 0 ? -1 : x > 0 ? 1 : Math.random() > 0.5 ? 1 : -1) * depth * 1.5;
+    if (Math.abs(x) < 0.8 && yNorm > 0.55) {
+      const depth = (1 - Math.abs(x) / 0.8) * (yNorm - 0.55) * 2.0;
+      x += (x < 0 ? -1 : x > 0 ? 1 : Math.random() > 0.5 ? 1 : -1) * depth * 1.2;
     }
 
-    const noise = 0.92 + Math.random() * 0.16;
-    positions[idx * 3] = x * noise;
-    positions[idx * 3 + 1] = y * noise + BRAIN_CY;
-    positions[idx * 3 + 2] = z * noise + BRAIN_CZ;
+    // Keep points on or slightly inside the surface (0.75 - 1.0 of radius)
+    const shell = 0.75 + Math.random() * 0.25;
+    positions[idx * 3] = x * shell;
+    positions[idx * 3 + 1] = y * shell + BRAIN_CY;
+    positions[idx * 3 + 2] = z * shell + BRAIN_CZ;
     regionIndices[idx] = x < 0 ? leftIdx : rightIdx;
     seeds[idx] = Math.random();
     idx++;
@@ -147,11 +125,11 @@ function buildPoints(): SampledPoints {
     const theta = Math.random() * Math.PI * 2;
     const cosPhi = 2 * Math.random() - 1;
     const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
-    const noise = 0.9 + Math.random() * 0.2;
+    const shell = 0.7 + Math.random() * 0.3;
 
-    positions[idx * 3] = sinPhi * Math.cos(theta) * CB_RX * noise + CB_CX;
-    positions[idx * 3 + 1] = cosPhi * CB_RY * noise + CB_CY;
-    positions[idx * 3 + 2] = sinPhi * Math.sin(theta) * CB_RZ * noise + CB_CZ;
+    positions[idx * 3] = sinPhi * Math.cos(theta) * CB_RX * shell + CB_CX;
+    positions[idx * 3 + 1] = cosPhi * CB_RY * shell + CB_CY;
+    positions[idx * 3 + 2] = sinPhi * Math.sin(theta) * CB_RZ * shell + CB_CZ;
     regionIndices[idx] = cbIdx;
     seeds[idx] = Math.random();
     idx++;
@@ -166,11 +144,11 @@ function buildPoints(): SampledPoints {
       const theta = Math.random() * Math.PI * 2;
       const cosPhi = 2 * Math.random() - 1;
       const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
-      const noise = 0.85 + Math.random() * 0.3;
+      const shell = 0.5 + Math.random() * 0.5;
 
-      positions[idx * 3] = sinPhi * Math.cos(theta) * rx * noise + cx;
-      positions[idx * 3 + 1] = cosPhi * ry * noise + cy;
-      positions[idx * 3 + 2] = sinPhi * Math.sin(theta) * rz * noise + cz;
+      positions[idx * 3] = sinPhi * Math.cos(theta) * rx * shell + cx;
+      positions[idx * 3 + 1] = cosPhi * ry * shell + cy;
+      positions[idx * 3 + 2] = sinPhi * Math.sin(theta) * rz * shell + cz;
       regionIndices[idx] = rIdx;
       seeds[idx] = Math.random();
       idx++;
@@ -215,24 +193,26 @@ void main() {
   float rate = baseRate + intensity * connected * rateGain
              + (1.0 - connected) * baseRate * 0.6;
 
+  // Two independent hash streams so nearby seeds don't correlate
   float phase = time * rate + seed * 137.0;
   float beat = floor(phase);
   float t = fract(phase);
 
-  float shouldFire = step(0.65, hash2(beat, seed * 73.1));
+  float roll = hash2(beat * 1.7 + seed * 311.0, seed * 73.1 + beat * 0.37);
+  float shouldFire = step(0.65, roll);
 
-  float flash = shouldFire * smoothstep(0.0, 0.04, t) * exp(-t * 10.0) * fScale;
+  float flash = shouldFire * smoothstep(0.0, 0.06, t) * exp(-t * 12.0) * fScale;
 
-  float twinkle = hash2(beat * 0.037, seed) * 0.04 * fScale
-                * (0.15 + intensity * 0.85);
+  float twinkle = hash2(beat * 0.037, seed) * 0.02 * fScale
+                * (0.1 + intensity * 0.9);
 
   vBrightness = flash + twinkle;
 
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   float dist = -mvPosition.z;
-  float sizeAtten = 280.0 / max(dist, 1.0);
+  float sizeAtten = clamp(60.0 / max(dist, 1.0), 0.6, 2.5);
 
-  gl_PointSize = max(0.0, (0.6 + flash * 5.0 * fScale) * sizeAtten);
+  gl_PointSize = max(0.0, (0.4 + flash * 1.6) * sizeAtten);
   gl_Position = projectionMatrix * mvPosition;
 }
 `;
@@ -244,16 +224,16 @@ void main() {
   float dist = length(gl_PointCoord - 0.5) * 2.0;
   if (dist > 1.0) discard;
 
-  float glow = exp(-dist * dist * 2.5);
+  float glow = exp(-dist * dist * 4.0);
 
-  vec3 hotColor = vec3(1.0, 0.95, 0.85);
-  vec3 coolColor = vec3(0.25, 0.75, 1.0);
-  vec3 color = mix(coolColor, hotColor, clamp(vBrightness * 3.0, 0.0, 1.0));
+  vec3 hotColor = vec3(1.0, 0.92, 0.8);
+  vec3 coolColor = vec3(0.3, 0.7, 1.0);
+  vec3 color = mix(coolColor, hotColor, clamp(vBrightness * 2.5, 0.0, 1.0));
 
   float alpha = glow * vBrightness;
-  if (alpha < 0.002) discard;
+  if (alpha < 0.003) discard;
 
-  gl_FragColor = vec4(color * alpha * 2.5, alpha);
+  gl_FragColor = vec4(color * alpha * 1.0, alpha);
 }
 `;
 
