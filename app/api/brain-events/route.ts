@@ -3,6 +3,11 @@ import { isBrainEvent, type BrainEvent } from "@/lib/brain-events";
 import { getGlobalEventBuffer } from "@/lib/event-buffer";
 import { getWSClientManager } from "@/lib/ws-clients";
 import { broadcastToSSEClients, getSSEClientCount } from "@/lib/sse-clients";
+import { recordEventFireAndForget, getStoreStatus } from "@/lib/event-store";
+
+// This route requires the Node.js runtime because event-store.ts uses
+// PrismaClient. Vercel Edge runtime is not supported.
+export const runtime = "nodejs";
 
 const BRAIN_API_KEY = process.env.BRAIN_API_KEY;
 
@@ -52,6 +57,7 @@ export async function POST(request: NextRequest) {
 
     const envelope = buffer.push(event as BrainEvent);
     envelopes.push(envelope);
+    recordEventFireAndForget(envelope);
     wsManager.broadcast(envelope);
     broadcastToSSEClients(envelope);
   }
@@ -60,6 +66,7 @@ export async function POST(request: NextRequest) {
     received: envelopes.length,
     buffer_size: buffer.size,
     connected_clients: wsManager.clientCount + getSSEClientCount(),
+    store: getStoreStatus(),
   });
 }
 
@@ -93,5 +100,6 @@ export async function GET(request: NextRequest) {
     buffer_size: buffer.size,
     events_per_second: buffer.eventsPerSecond,
     connected_clients: wsManager.clientCount,
+    store: getStoreStatus(),
   });
 }

@@ -1,0 +1,44 @@
+// Prisma schema for Wintermute brain-events persistent store.
+//
+// The store captures every brain event Molly emits to Wintermute and persists
+// it to a Prisma Postgres database accessed via Accelerate. The persisted
+// stream becomes the source of (text, brain_state) paired training data for
+// the substrate-cortex training pipeline (mmajoris/molly#356).
+//
+// Schema rationale:
+// - JSONB payload absorbs the 60+ heterogeneous event types without forcing a
+//   flat columnar schema. New event types added in molly's brain-events.ts
+//   land in this store without migrations.
+// - The structured columns (envelope_id, event_type, received_at,
+//   event_timestamp) are the ones we actually query — time windows, type
+//   filters, dedup by envelope id.
+// - Indexes cover the realistic queries: most-recent-N, type-filtered-time-
+//   windows, time-aligned joins between conversation and substrate state.
+// - The GIN index on payload is added in a follow-up raw-SQL migration so we
+//   can also query inside the JSONB blob (e.g., "all events where the
+//   neurochemistry payload has cortisol > 0.6"). Prisma doesn't generate GIN
+//   indexes from the schema itself.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BrainEvent {
+  id             BigInt   @id @default(autoincrement())
+  envelopeId     String   @unique @map("envelope_id")
+  eventType      String   @map("event_type")
+  receivedAt     DateTime @map("received_at") @db.Timestamptz(3)
+  eventTimestamp DateTime @map("event_timestamp") @db.Timestamptz(3)
+  payload        Json     @db.JsonB
+  insertedAt     DateTime @default(now()) @map("inserted_at") @db.Timestamptz(3)
+
+  @@index([receivedAt(sort: Desc)], map: "idx_brain_events_received_at")
+  @@index([eventType, receivedAt(sort: Desc)], map: "idx_brain_events_type_received")
+  @@index([eventTimestamp(sort: Desc)], map: "idx_brain_events_event_timestamp")
+  @@map("brain_events")
+}
