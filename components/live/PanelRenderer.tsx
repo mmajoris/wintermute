@@ -26,6 +26,7 @@ import ExecutiveControlPanel from "./neuro/ExecutiveControlPanel";
 import DecisionStrategyPanel from "./neuro/DecisionStrategyPanel";
 import SocialBrainPanel from "./neuro/SocialBrainPanel";
 import CerebellarSystemPanel from "./neuro/CerebellarPanel";
+import AdapterEvolutionPanel from "./neuro/AdapterEvolutionPanel";
 
 // ── Individual panel components ────────────────────────────────────────────
 
@@ -367,6 +368,7 @@ const PANEL_COMPONENTS: Record<string, React.ComponentType> = {
   "decision-strategy": DecisionStrategyPanel,
   "social-brain": SocialBrainPanel,
   "cerebellar-system": CerebellarSystemPanel,
+  "adapter-evolution": AdapterEvolutionPanel,
 };
 
 // ── Renderer ───────────────────────────────────────────────────────────────

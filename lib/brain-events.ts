@@ -875,6 +875,76 @@ export interface SystemStatusEvent {
   reason?: string;
 }
 
+// ── Substrate-cortex training telemetry ──────────────────────────────────
+//
+// These four event types are emitted by the per-turn online learning loop
+// (mmajoris/molly#361) and the substrate-cortex telemetry layer
+// (mmajoris/molly#370). They make Molly's training trajectory observable in
+// real time as the substrate-modulated backward passes accumulate adapter
+// state from her lived experience.
+//
+// They are defined here ahead of the molly-side emission code so the
+// wintermute dashboard, history queries, and adapter visualization panel can
+// be built and tested against mock/sample data. When mmajoris/molly#370
+// lands, the molly-side mirror in src/lib/brain-events.ts must match these
+// definitions exactly.
+
+export interface PerTurnLearningEvent {
+  type: "per_turn_learning";
+  timestamp: string;
+  turn_id: string;
+  was_internal_thought: boolean;
+  loss_value: number;
+  gradient_norm: number;
+  adapter_delta_norm: number;
+  learning_rate_applied: number;
+  plasticity_eligibility: number;
+  brain_state_snapshot: {
+    dopamine_tonic?: number;
+    serotonin?: number;
+    norepinephrine_mode?: NorepinephrineMode;
+    cortisol?: number;
+    acetylcholine?: number;
+    [key: string]: number | string | boolean | undefined;
+  };
+}
+
+export interface PlasticityGateFireEvent {
+  type: "plasticity_gate_fire";
+  timestamp: string;
+  turn_id: string;
+  attention_selection: number;
+  encoding_mode_ach: number;
+  novelty_or_value: number;
+  synaptic_resource: number;
+  composed_eligibility: number;
+  decision: "fire" | "suppress" | "habituate";
+}
+
+export interface AdapterStateSnapshotEvent {
+  type: "adapter_state_snapshot";
+  timestamp: string;
+  checkpoint_path: string;
+  total_norm: number;
+  per_layer_norms: Record<string, number>;
+  since_last_checkpoint_delta_norm: number;
+  total_turns_since_deployment: number;
+  total_internal_thoughts_since_deployment: number;
+  trigger: "scheduled" | "sleep_consolidation" | "manual" | "shutdown";
+}
+
+export interface SleepConsolidationEvent {
+  type: "sleep_consolidation";
+  timestamp: string;
+  phase: "start" | "end";
+  replay_pairs_sampled: number;
+  drift_cap_applied: boolean;
+  pre_norm: number;
+  post_norm: number;
+  rollback_target: string;
+  duration_ms?: number;
+}
+
 // ── Union & Helpers ──────────────────────────────────────────────────────
 
 export type BrainEvent =
@@ -938,7 +1008,11 @@ export type BrainEvent =
   | DriveStatesEvent
   | MoodSnapshotEvent
   | ConsolidationStatsEvent
-  | SystemStatusEvent;
+  | SystemStatusEvent
+  | PerTurnLearningEvent
+  | PlasticityGateFireEvent
+  | AdapterStateSnapshotEvent
+  | SleepConsolidationEvent;
 
 export interface BrainEventEnvelope {
   id: string;
@@ -1008,6 +1082,10 @@ const VALID_EVENT_TYPES: ReadonlySet<string> = new Set([
   "mood_snapshot",
   "consolidation_stats",
   "system_status",
+  "per_turn_learning",
+  "plasticity_gate_fire",
+  "adapter_state_snapshot",
+  "sleep_consolidation",
 ]);
 
 export function isBrainEvent(obj: unknown): obj is BrainEvent {

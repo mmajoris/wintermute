@@ -34,6 +34,7 @@ export const PANEL_REGISTRY: PanelDef[] = [
   { id: "decision-strategy", label: "Decision & Strategy" },
   { id: "social-brain", label: "Social Brain" },
   { id: "cerebellar-system", label: "Cerebellar System" },
+  { id: "adapter-evolution", label: "Adapter Evolution" },
 ];
 
 export function getPanelLabel(id: string): string {
