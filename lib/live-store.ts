@@ -55,6 +55,10 @@ import type {
   ToolExecutionEvent,
   TelegramMessageEvent,
   InteroceptionSignalEvent,
+  PerTurnLearningEvent,
+  PlasticityGateFireEvent,
+  AdapterStateSnapshotEvent,
+  SleepConsolidationEvent,
 } from "./brain-events";
 import {
   getRegionForCollection,
@@ -177,6 +181,16 @@ export interface LiveStore {
   bnstState: BnstStateEvent | null;
   metamemoryState: MetamemoryEvent | null;
 
+  // Substrate-cortex training telemetry — see brain-events.ts §"Substrate-cortex training telemetry"
+  lastPerTurnLearning: PerTurnLearningEvent | null;
+  perTurnLearningHistory: PerTurnLearningEvent[];
+  lastPlasticityGate: PlasticityGateFireEvent | null;
+  plasticityGateHistory: PlasticityGateFireEvent[];
+  lastAdapterSnapshot: AdapterStateSnapshotEvent | null;
+  adapterSnapshotHistory: AdapterStateSnapshotEvent[];
+  lastSleepConsolidation: SleepConsolidationEvent | null;
+  sleepConsolidationHistory: SleepConsolidationEvent[];
+
   lastEventAt: number;
   mollyAwake: boolean;
 
@@ -268,6 +282,15 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   autonomicBalance: null,
   bnstState: null,
   metamemoryState: null,
+
+  lastPerTurnLearning: null,
+  perTurnLearningHistory: [],
+  lastPlasticityGate: null,
+  plasticityGateHistory: [],
+  lastAdapterSnapshot: null,
+  adapterSnapshotHistory: [],
+  lastSleepConsolidation: null,
+  sleepConsolidationHistory: [],
 
   lastEventAt: 0,
   mollyAwake: false,
@@ -580,6 +603,45 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
       case "system_status": {
         const ss = event as SystemStatusEvent;
         updates.mollyAwake = ss.status === "awake";
+        break;
+      }
+
+      // ── Substrate-cortex training telemetry ─────────────────────────
+      case "per_turn_learning": {
+        const ev = event as PerTurnLearningEvent;
+        updates.lastPerTurnLearning = ev;
+        const prev = state.perTurnLearningHistory;
+        // Keep last 200 turns rolling
+        const next = prev.length >= 200 ? [...prev.slice(-199), ev] : [...prev, ev];
+        updates.perTurnLearningHistory = next;
+        break;
+      }
+
+      case "plasticity_gate_fire": {
+        const ev = event as PlasticityGateFireEvent;
+        updates.lastPlasticityGate = ev;
+        const prev = state.plasticityGateHistory;
+        const next = prev.length >= 200 ? [...prev.slice(-199), ev] : [...prev, ev];
+        updates.plasticityGateHistory = next;
+        break;
+      }
+
+      case "adapter_state_snapshot": {
+        const ev = event as AdapterStateSnapshotEvent;
+        updates.lastAdapterSnapshot = ev;
+        const prev = state.adapterSnapshotHistory;
+        // Keep last 500 snapshots — these are the trajectory points for the panel
+        const next = prev.length >= 500 ? [...prev.slice(-499), ev] : [...prev, ev];
+        updates.adapterSnapshotHistory = next;
+        break;
+      }
+
+      case "sleep_consolidation": {
+        const ev = event as SleepConsolidationEvent;
+        updates.lastSleepConsolidation = ev;
+        const prev = state.sleepConsolidationHistory;
+        const next = prev.length >= 100 ? [...prev.slice(-99), ev] : [...prev, ev];
+        updates.sleepConsolidationHistory = next;
         break;
       }
 
