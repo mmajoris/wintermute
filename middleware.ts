@@ -36,6 +36,20 @@ export function middleware(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Brain events history query — persistent-store read path, API key required
+  if (pathname === "/api/brain-events/history") {
+    if (hasBearerKey(req)) return NextResponse.next();
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Cron endpoints — Vercel Cron injects Authorization: Bearer ${CRON_SECRET}
+  // automatically. Middleware passes through and the route handler does the
+  // actual CRON_SECRET check, because middleware doesn't know about that env
+  // var by design (CRON_SECRET is route-scoped, not middleware-scoped).
+  if (pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
+
   // Command log — POST from VM scripts (API key), GET from UI (session)
   if (pathname === "/api/commands/log") {
     if (req.method === "POST" && hasBearerKey(req)) return NextResponse.next();
