@@ -3,6 +3,7 @@ import { isBrainEvent, type BrainEvent } from "@/lib/brain-events";
 import { getGlobalEventBuffer } from "@/lib/event-buffer";
 import { getWSClientManager } from "@/lib/ws-clients";
 import { broadcastToSSEClients, getSSEClientCount } from "@/lib/sse-clients";
+import { recordEvent, getRecorderStatus } from "@/lib/event-recorder";
 
 const BRAIN_API_KEY = process.env.BRAIN_API_KEY;
 
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
 
     const envelope = buffer.push(event as BrainEvent);
     envelopes.push(envelope);
+    recordEvent(envelope);
     wsManager.broadcast(envelope);
     broadcastToSSEClients(envelope);
   }
@@ -60,6 +62,7 @@ export async function POST(request: NextRequest) {
     received: envelopes.length,
     buffer_size: buffer.size,
     connected_clients: wsManager.clientCount + getSSEClientCount(),
+    recorder: getRecorderStatus(),
   });
 }
 
@@ -93,5 +96,6 @@ export async function GET(request: NextRequest) {
     buffer_size: buffer.size,
     events_per_second: buffer.eventsPerSecond,
     connected_clients: wsManager.clientCount,
+    recorder: getRecorderStatus(),
   });
 }
