@@ -196,6 +196,8 @@ export interface LiveStore {
 
   selectedRegionId: string | null;
   hoveredRegionId: string | null;
+  hiddenRegionIds: Set<string>;
+  isolatedRegionId: string | null;
 
   setConnected: (connected: boolean, error?: string | null) => void;
   setEventsPerSecond: (rate: number) => void;
@@ -203,6 +205,10 @@ export interface LiveStore {
   processHistory: (envelopes: BrainEventEnvelope[]) => void;
   selectRegion: (id: string | null) => void;
   hoverRegion: (id: string | null) => void;
+  hideRegion: (id: string) => void;
+  unhideRegion: (id: string) => void;
+  isolateRegion: (id: string | null) => void;
+  clearHiddenRegions: () => void;
   decayActivity: () => void;
   triggerThoughtPulse: () => void;
   triggerPathway: (pathway: string, intensity?: number) => void;
@@ -297,6 +303,8 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
 
   selectedRegionId: null,
   hoveredRegionId: null,
+  hiddenRegionIds: new Set<string>(),
+  isolatedRegionId: null,
 
   setConnected: (connected, error = null) =>
     set({ connected, connectionError: error }),
@@ -840,6 +848,20 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
 
   selectRegion: (id) => set({ selectedRegionId: id }),
   hoverRegion: (id) => set({ hoveredRegionId: id }),
+  hideRegion: (id) =>
+    set((s) => {
+      const next = new Set(s.hiddenRegionIds);
+      next.add(id);
+      return { hiddenRegionIds: next, isolatedRegionId: null, selectedRegionId: null };
+    }),
+  unhideRegion: (id) =>
+    set((s) => {
+      const next = new Set(s.hiddenRegionIds);
+      next.delete(id);
+      return { hiddenRegionIds: next };
+    }),
+  isolateRegion: (id) => set({ isolatedRegionId: id }),
+  clearHiddenRegions: () => set({ hiddenRegionIds: new Set(), isolatedRegionId: null }),
 
   decayActivity: () => {
     const state = get();

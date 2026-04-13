@@ -74,8 +74,38 @@ const MONITORED_REGIONS = [
   "cerebellum", "left-hemisphere", "right-hemisphere",
 ];
 
+function RegionVisibilityIcon({ status }: { status: "visible" | "hidden" | "isolated" }) {
+  if (status === "hidden") {
+    return (
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+        strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-400/70">
+        <path d="M2 2l12 12" />
+        <path d="M6.5 6.5a2 2 0 002.8 2.8" />
+        <path d="M3.5 3.5C2.2 4.7 1.2 6.2 1 8c.7 4 4 6 7 6 1.2 0 2.3-.3 3.3-.9" />
+        <path d="M10 4.2C10.7 3.7 11.3 3.3 12 3c1.6.8 2.8 2.2 3 5-.3 1.5-1 2.8-2 3.8" />
+      </svg>
+    );
+  }
+  if (status === "isolated") {
+    return (
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+        strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-indigo-400/80">
+        <circle cx="8" cy="8" r="3" />
+        <line x1="8" y1="1" x2="8" y2="4" />
+        <line x1="8" y1="12" x2="8" y2="15" />
+        <line x1="1" y1="8" x2="4" y2="8" />
+        <line x1="12" y1="8" x2="15" y2="8" />
+      </svg>
+    );
+  }
+  return null;
+}
+
 function RegionsPanel() {
-  const { regionActivity, selectRegion, selectedRegionId } = useLiveStore();
+  const {
+    regionActivity, selectRegion, selectedRegionId,
+    hiddenRegionIds, isolatedRegionId,
+  } = useLiveStore();
   return (
     <BracketFrame variant="combo-d" className="p-4 overflow-hidden flex-1 min-h-32 flex flex-col">
       <HudSectionTitle>Neural Regions</HudSectionTitle>
@@ -87,6 +117,9 @@ function RegionsPanel() {
           const intensity = activity?.intensity ?? 0;
           const isActive = intensity > 0.05;
           const isSelected = selectedRegionId === regionId;
+          const isHidden = hiddenRegionIds.has(regionId);
+          const isIsolated = isolatedRegionId === regionId;
+          const visStatus = isIsolated ? "isolated" as const : isHidden ? "hidden" as const : "visible" as const;
           return (
             <button key={regionId}
               onClick={() => selectRegion(isSelected ? null : regionId)}
@@ -94,29 +127,42 @@ function RegionsPanel() {
               style={{
                 backgroundColor: isSelected ? `${region.color}15` : undefined,
                 boxShadow: isSelected ? `inset 2px 0 0 ${region.color}` : undefined,
+                opacity: isHidden ? 0.4 : 1,
               }}
             >
               <span className="w-1.5 h-1.5 rounded-full shrink-0 transition-all duration-500"
                 style={{
-                  backgroundColor: isSelected ? region.color : isActive ? region.color : `${region.color}30`,
-                  boxShadow: isSelected || isActive ? `0 0 6px ${region.color}80` : "none",
+                  backgroundColor: isHidden ? `${region.color}20`
+                    : isSelected ? region.color
+                    : isActive ? region.color
+                    : `${region.color}30`,
+                  boxShadow: !isHidden && (isSelected || isActive) ? `0 0 6px ${region.color}80` : "none",
                 }}
               />
               <span className="truncate transition-colors duration-500"
-                style={{ color: isSelected ? "#ffffff" : isActive ? "#d4d4d4" : "#525252" }}
+                style={{
+                  color: isHidden ? "#3f3f46"
+                    : isSelected ? "#ffffff"
+                    : isActive ? "#d4d4d4"
+                    : "#525252",
+                  textDecoration: isHidden ? "line-through" : undefined,
+                }}
               >
                 {region.name}
               </span>
-              <div className="ml-auto w-10 h-1 rounded-full overflow-hidden shrink-0"
-                style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
-              >
-                <div className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.max(intensity * 100, 0)}%`,
-                    backgroundColor: region.color,
-                    opacity: isActive ? 1 : 0,
-                  }}
-                />
+              <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                <RegionVisibilityIcon status={visStatus} />
+                <div className="w-10 h-1 rounded-full overflow-hidden"
+                  style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
+                >
+                  <div className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.max(intensity * 100, 0)}%`,
+                      backgroundColor: region.color,
+                      opacity: isActive && !isHidden ? 1 : 0,
+                    }}
+                  />
+                </div>
               </div>
             </button>
           );
