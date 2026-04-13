@@ -46,6 +46,7 @@ export function getPanelLabel(id: string): string {
 export interface PanelTab {
   id: string;
   label: string;
+  icon?: string;
   panels: string[];
 }
 
@@ -63,21 +64,25 @@ const DEFAULT_LAYOUT: SidebarLayout = {
     {
       id: "default",
       label: "Default",
+      icon: "grid",
       panels: ["vitals", "synaptic-activity", "cognitive-state", "regions"],
     },
     {
       id: "neuro",
       label: "Neuro",
-      panels: ["affect-circuits", "hpa-stress", "dopamine-system"],
+      icon: "brain",
+      panels: ["affect-circuits", "hpa-stress", "dopamine-system", "adapter-evolution"],
     },
     {
       id: "higher",
       label: "Higher",
+      icon: "hierarchy",
       panels: ["executive-control", "decision-strategy", "social-brain"],
     },
     {
       id: "imaging",
       label: "Imaging",
+      icon: "layers",
       panels: ["mri-viewer", "ct-scan"],
     },
   ],
@@ -85,31 +90,37 @@ const DEFAULT_LAYOUT: SidebarLayout = {
     {
       id: "default",
       label: "Default",
+      icon: "grid",
       panels: ["radial", "neurochemistry", "traces", "events"],
     },
     {
       id: "eeg",
       label: "EEG",
+      icon: "waveform",
       panels: ["eeg-display", "brain-topo"],
     },
     {
       id: "clinical",
       label: "Clinical",
+      icon: "medical",
       panels: ["circadian-rhythm", "cortical-cognitive"],
     },
     {
       id: "functional",
       label: "Functional",
+      icon: "crosshair",
       panels: ["pet-scan", "fmri-bold"],
     },
     {
       id: "systems",
       label: "Systems",
+      icon: "network",
       panels: ["global-workspace", "cerebellar-system"],
     },
     {
       id: "studies",
       label: "Studies",
+      icon: "document",
       panels: ["study-browser"],
     },
   ],
@@ -186,9 +197,9 @@ export const usePanelLayout = create<PanelLayoutStore>()(
     }),
     {
       name: "wintermute:panel-layout",
-      version: 5,
+      version: 7,
       migrate: (persisted: unknown, version: number) => {
-        if (version < 5) {
+        if (version < 7) {
           return DEFAULT_LAYOUT;
         }
         return persisted as PanelLayoutStore;

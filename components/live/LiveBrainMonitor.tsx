@@ -245,7 +245,11 @@ function IsolateHideControls({
 }
 
 export default function LiveBrainMonitor() {
-  const { selectRegion, selectedRegionId, decayActivity } = useLiveStore();
+  const {
+    selectRegion, selectedRegionId, decayActivity,
+    hiddenRegionIds, isolatedRegionId,
+    hideRegion, unhideRegion, isolateRegion, clearHiddenRegions,
+  } = useLiveStore();
 
   const [activeLayers, setActiveLayers] = useState<Set<LayerKey>>(
     new Set<LayerKey>([
@@ -262,8 +266,6 @@ export default function LiveBrainMonitor() {
   const [atlasOpen, setAtlasOpen] = useState(false);
   const [architectureOpen, setArchitectureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [isolatedId, setIsolatedId] = useState<string | null>(null);
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [hudBrightness, setHudBrightness] = useState(1);
 
   useEventStream();
@@ -280,8 +282,8 @@ export default function LiveBrainMonitor() {
   }, []);
 
   useEffect(() => {
-    if (!selectedRegionId) setIsolatedId(null);
-  }, [selectedRegionId]);
+    if (!selectedRegionId) isolateRegion(null);
+  }, [selectedRegionId, isolateRegion]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -291,15 +293,15 @@ export default function LiveBrainMonitor() {
   }, [decayActivity]);
 
   const visibleIds = useMemo(() => {
-    if (isolatedId) return new Set([isolatedId]);
+    if (isolatedRegionId) return new Set([isolatedRegionId]);
     const ids = new Set<string>();
     for (const key of activeLayers) {
       for (const id of LAYER_GROUPS[key]) {
-        if (!hiddenIds.has(id)) ids.add(id);
+        if (!hiddenRegionIds.has(id)) ids.add(id);
       }
     }
     return ids;
-  }, [activeLayers, hiddenIds, isolatedId]);
+  }, [activeLayers, hiddenRegionIds, isolatedRegionId]);
 
   const toggleLayer = useCallback((key: LayerKey) => {
     setActiveLayers((prev) => {
@@ -308,14 +310,13 @@ export default function LiveBrainMonitor() {
       else next.add(key);
       return next;
     });
-    setIsolatedId(null);
-  }, []);
+    isolateRegion(null);
+  }, [isolateRegion]);
 
   const showAll = useCallback(() => {
     setActiveLayers(new Set(Object.keys(LAYER_GROUPS) as LayerKey[]));
-    setHiddenIds(new Set());
-    setIsolatedId(null);
-  }, []);
+    clearHiddenRegions();
+  }, [clearHiddenRegions]);
 
   return (
     <HudThemeProvider brightness={hudBrightness}>
@@ -355,7 +356,7 @@ export default function LiveBrainMonitor() {
             className="w-full h-full"
             onPointerMissed={() => {
               selectRegion(null);
-              setIsolatedId(null);
+              isolateRegion(null);
             }}
           >
           <color attach="background" args={["#030406"]} />
@@ -393,26 +394,16 @@ export default function LiveBrainMonitor() {
           <AnimatePresence>
             {selectedRegionId && (
               <IsolateHideControls
-                isolatedId={isolatedId}
-                isHidden={hiddenIds.has(selectedRegionId)}
-                onIsolate={() => selectedRegionId && setIsolatedId(selectedRegionId)}
+                isolatedId={isolatedRegionId}
+                isHidden={hiddenRegionIds.has(selectedRegionId)}
+                onIsolate={() => selectedRegionId && isolateRegion(selectedRegionId)}
                 onHide={() => {
-                  if (selectedRegionId) {
-                    setHiddenIds((prev) => new Set([...prev, selectedRegionId]));
-                    setIsolatedId(null);
-                    selectRegion(null);
-                  }
+                  if (selectedRegionId) hideRegion(selectedRegionId);
                 }}
                 onUnhide={() => {
-                  if (selectedRegionId) {
-                    setHiddenIds((prev) => {
-                      const next = new Set(prev);
-                      next.delete(selectedRegionId);
-                      return next;
-                    });
-                  }
+                  if (selectedRegionId) unhideRegion(selectedRegionId);
                 }}
-                onClearIsolate={() => setIsolatedId(null)}
+                onClearIsolate={() => isolateRegion(null)}
               />
             )}
           </AnimatePresence>
